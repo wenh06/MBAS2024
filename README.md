@@ -19,3 +19,9 @@ but also have the potential to be applied across various medical domains, aiming
 ## LG-MRI
 
 to be added....
+
+## Deep learning models for medical image studies
+
+[Nividia: Visual Foundation Models for Medical Image Analysis](https://developer.nvidia.com/blog/visual-foundation-models-for-medical-image-analysis/)
+
+[MONAI Model Zoo](https://monai.io/model-zoo.html) | [MONAI at GitHub](https://github.com/Project-MONAI)
