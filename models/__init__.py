@@ -20,6 +20,8 @@ from cfg import ModelCfg
 from const import INPUT_IMAGE_TYPES, MODEL_CACHE_DIR
 from outputs import MBAS2024Outputs
 
+from .vnet import VNet
+
 __all__ = [
     "MultiHead_MBAS2024",
 ]
@@ -49,8 +51,10 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CitationMixin):
         super().__init__()
         self.__config = deepcopy(ModelCfg)
         if config is not None:
-            self.__config.update(deepcopy(config))
-        raise NotImplementedError
+            self.__config.update((config or {}).copy())
+        self.preprocessor = None
+        self.augmentor = None
+        self.segmentation_head = VNet(self.config.nums_classes, self.config.vnet)
 
     def forward(
         self,
