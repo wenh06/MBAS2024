@@ -5,6 +5,8 @@ from typing import Any, Optional, Sequence, Union
 import nibabel as nib
 import numpy as np
 import pandas as pd
+import torch
+import torch.nn.functional as F
 from torch_ecg.databases.base import DataBaseInfo, _DataBase
 from torch_ecg.utils.misc import add_docstring, get_record_list_recursive3
 
@@ -157,13 +159,16 @@ class MBAS2024(_DataBase):
             rec = self._all_records[rec]
         return self._df_records.loc[rec, "ann_path"]
 
-    def load_data(self, rec: Union[str, int]) -> np.ndarray:
+    def load_data(self, rec: Union[str, int], output_shape: Optional[Sequence[int]] = None) -> np.ndarray:
         """Load the 3D LGE-MRI of a record.
 
         Parameters
         ----------
         rec : str or int
             The record name or index in self._all_records.
+        output_shape : Sequence[int], optional
+            The output shape of the 3D LGE-MRI data.
+            If None, the original shape is returned.
 
         Returns
         -------
@@ -171,15 +176,20 @@ class MBAS2024(_DataBase):
             The 3D LGE-MRI data.
 
         """
-        return nib.load(str(self.get_data_path(rec))).get_fdata()
+        if output_shape is None:
+            return nib.load(str(self.get_data_path(rec))).get_fdata()
+        return self.resample_data(nib.load(str(self.get_data_path(rec))).get_fdata(), output_shape)
 
-    def load_ann(self, rec: Union[str, int]) -> np.ndarray:
+    def load_ann(self, rec: Union[str, int], output_shape: Optional[Sequence[int]] = None) -> np.ndarray:
         """Load the segmentation annotation of a record.
 
         Parameters
         ----------
         rec : str or int
             The record name or index in self._all_records.
+        output_shape : Sequence[int], optional
+            The output shape of the segmentation annotation.
+            If None, the original shape is returned.
 
         Returns
         -------
@@ -188,7 +198,96 @@ class MBAS2024(_DataBase):
             typically a 3D mask of the same shape as the LGE-MRI.
 
         """
-        return nib.load(str(self.get_ann_path(rec))).get_fdata()
+        if output_shape is None:
+            return nib.load(str(self.get_ann_path(rec))).get_fdata()
+        return self.resample_data(nib.load(str(self.get_ann_path(rec))).get_fdata(), output_shape)
+
+    def load_ann_box(
+        self, rec: Union[str, int], pad: Union[int, Sequence[int]] = [5, 5, 2], ann_shape: Optional[Sequence[int]] = None
+    ) -> np.ndarray:
+        """Load the bounding box of the segmentation annotation of a record.
+
+        Parameters
+        ----------
+        rec : str or int
+            The record name or index in self._all_records.
+        pad : int or Sequence[int], default [5, 5, 2]
+            Padding around the bounding box.
+        ann_shape : Sequence[int], optional
+            The shape of the segmentation annotation.
+
+        Returns
+        -------
+        numpy.ndarray
+            The bounding box of the segmentation annotation,
+            of shape [[x_min, x_max], [y_min, y_max], [z_min, z_max]].
+
+        """
+        ann_mask = self.load_ann(rec, output_shape=ann_shape)
+        x, y, z = np.where(ann_mask != self.__label2id__["background"])
+        if isinstance(pad, int):
+            pad = [pad] * 3
+        x_min, x_max = max(0, x.min() - pad[0]), min(ann_mask.shape[0], x.max() + pad[0])
+        y_min, y_max = max(0, y.min() - pad[1]), min(ann_mask.shape[1], y.max() + pad[1])
+        z_min, z_max = max(0, z.min() - pad[2]), min(ann_mask.shape[2], z.max() + pad[2])
+        return np.array([[x_min, x_max], [y_min, y_max], [z_min, z_max]])
+
+    def load_data_cropped(
+        self, rec: Union[str, int], pad: Union[int, Sequence[int]] = [5, 5, 2], output_shape: Optional[Sequence[int]] = None
+    ) -> np.ndarray:
+        """Load the 3D LGE-MRI of a record cropped by the bounding box of the segmentation annotation.
+
+        Parameters
+        ----------
+        rec : str or int
+            The record name or index in self._all_records.
+        pad : int or Sequence[int], default [5, 5, 2]
+            Padding around the bounding box.
+        output_shape : Sequence[int], optional
+            The output shape of the 3D LGE-MRI data.
+            If None, the original shape is returned.
+
+        Returns
+        -------
+        numpy.ndarray
+            The cropped 3D LGE-MRI data.
+
+        """
+        data = self.load_data(rec)
+        box = self.load_ann_box(rec, pad)
+        (x_min, x_max), (y_min, y_max), (z_min, z_max) = box
+        if output_shape is None:
+            return data[x_min:x_max, y_min:y_max, z_min:z_max]
+        return self.resample_data(data[x_min:x_max, y_min:y_max, z_min:z_max], output_shape)
+
+    def load_ann_cropped(
+        self, rec: Union[str, int], pad: Union[int, Sequence[int]] = [5, 5, 2], output_shape: Optional[Sequence[int]] = None
+    ) -> np.ndarray:
+        """Load the segmentation annotation of a record cropped by the bounding box of the segmentation annotation.
+
+        Parameters
+        ----------
+        rec : str or int
+            The record name or index in self._all_records.
+        pad : int or Sequence[int], default [5, 5, 2]
+            Padding around the bounding box.
+        output_shape : Sequence[int], optional
+            The output shape of the segmentation annotation.
+            If None, the original shape is returned.
+
+        Returns
+        -------
+        numpy.ndarray
+            The cropped segmentation annotation,
+            typically a 3D mask of the same shape as the LGE-MRI.
+
+        """
+        ann_mask = self.load_ann(rec)
+        box = self.load_ann_box(rec, pad)
+        (x_min, x_max), (y_min, y_max), (z_min, z_max) = box
+        if output_shape is None:
+            return ann_mask[x_min:x_max, y_min:y_max, z_min:z_max]
+        return self.resample_data(ann_mask[x_min:x_max, y_min:y_max, z_min:z_max], output_shape)
 
     def view_data(
         self,
@@ -196,6 +295,7 @@ class MBAS2024(_DataBase):
         channels: Optional[Union[Sequence[int], int]] = None,
         with_ann: bool = True,
         orthoview: bool = False,
+        output_shape: Optional[Sequence[int]] = None,
     ) -> None:
         """View the 3D LGE-MRI of a record.
 
@@ -210,6 +310,9 @@ class MBAS2024(_DataBase):
             Whether to overlay the segmentation annotation on the MRI.
         orthoview : bool, default False
             Whether to view the MRI in orthogonal view.
+        output_shape : Sequence[int], optional
+            The output shape of the 3D LGE-MRI data.
+            If None, the original shape is returned.
 
         """
         if "plt" not in globals():
@@ -217,16 +320,19 @@ class MBAS2024(_DataBase):
             from matplotlib.colors import ListedColormap
         if isinstance(rec, int):
             rec = self._all_records[rec]
-        data = self.load_data(rec)
+        data = self.load_data(rec, output_shape=output_shape)
         if orthoview:
             data.orthoview()
             return
         if with_ann:
-            seg_ann = self.load_ann(rec)
+            seg_ann = self.load_ann(rec, output_shape=output_shape)
         else:
             seg_ann = np.full_like(data, self.__label2id__["background"])
         if channels is None:
-            channels = list(range(self._df_records.loc[rec, "channels"]))
+            if output_shape is None:
+                channels = list(range(self._df_records.loc[rec, "channels"]))
+            else:
+                channels = list(range(output_shape[-1]))
         elif isinstance(channels, int):
             channels = [channels]
         num_channels = len(channels)
@@ -258,3 +364,31 @@ class MBAS2024(_DataBase):
     @property
     def url(self) -> str:
         return "https://codalab.lisn.upsaclay.fr/competitions/18516"
+
+    @staticmethod
+    def resample_data(data: np.ndarray, shape: Sequence[int]) -> np.ndarray:
+        """Resample 3D LGE-MRI data.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The 3D LGE-MRI data or the segmentation annotation (mask).
+        zoom_factor : float or Sequence[float]
+            The zoom factor for each dimension.
+
+        Returns
+        -------
+        numpy.ndarray
+            The resampled 3D LGE-MRI data.
+
+        """
+        dtype = data.dtype
+        rsmp_data = (
+            F.interpolate(torch.from_numpy(data).unsqueeze(0).unsqueeze(0), size=shape, mode="trilinear", align_corners=True)
+            .squeeze()
+            .numpy()
+        )
+        # if is of integer type, round to the nearest integer
+        if np.issubdtype(dtype, np.integer):
+            rsmp_data = np.round(rsmp_data).astype(dtype)
+        return rsmp_data
