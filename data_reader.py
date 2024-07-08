@@ -66,6 +66,7 @@ class MBAS2024(_DataBase):
         2: "blue",  # "left atrium"
         3: "yellow",  # "left & right atrial walls"
     }
+    __default_crop_pad__ = [7, 7, 3]
 
     def __init__(
         self,
@@ -203,7 +204,7 @@ class MBAS2024(_DataBase):
         return self.resample_data(nib.load(str(self.get_ann_path(rec))).get_fdata(), output_shape)
 
     def load_ann_box(
-        self, rec: Union[str, int], pad: Union[int, Sequence[int]] = [5, 5, 2], ann_shape: Optional[Sequence[int]] = None
+        self, rec: Union[str, int], pad: Optional[Union[int, Sequence[int]]] = None, ann_shape: Optional[Sequence[int]] = None
     ) -> np.ndarray:
         """Load the bounding box of the segmentation annotation of a record.
 
@@ -211,8 +212,9 @@ class MBAS2024(_DataBase):
         ----------
         rec : str or int
             The record name or index in self._all_records.
-        pad : int or Sequence[int], default [5, 5, 2]
-            Padding around the bounding box.
+        pad : int or Sequence[int], optional
+            Padding around the bounding box, in each dimension.
+            Defaults to self.__default_crop_pad__.
         ann_shape : Sequence[int], optional
             The shape of the segmentation annotation.
 
@@ -225,6 +227,8 @@ class MBAS2024(_DataBase):
         """
         ann_mask = self.load_ann(rec, output_shape=ann_shape)
         x, y, z = np.where(ann_mask != self.__label2id__["background"])
+        if pad is None:
+            pad = self.__default_crop_pad__
         if isinstance(pad, int):
             pad = [pad] * 3
         x_min, x_max = max(0, x.min() - pad[0]), min(ann_mask.shape[0], x.max() + pad[0])
@@ -233,7 +237,10 @@ class MBAS2024(_DataBase):
         return np.array([[x_min, x_max], [y_min, y_max], [z_min, z_max]])
 
     def load_data_cropped(
-        self, rec: Union[str, int], pad: Union[int, Sequence[int]] = [5, 5, 2], output_shape: Optional[Sequence[int]] = None
+        self,
+        rec: Union[str, int],
+        pad: Optional[Union[int, Sequence[int]]] = None,
+        output_shape: Optional[Sequence[int]] = None,
     ) -> np.ndarray:
         """Load the 3D LGE-MRI of a record cropped by the bounding box of the segmentation annotation.
 
@@ -241,8 +248,9 @@ class MBAS2024(_DataBase):
         ----------
         rec : str or int
             The record name or index in self._all_records.
-        pad : int or Sequence[int], default [5, 5, 2]
-            Padding around the bounding box.
+        pad : int or Sequence[int], optional
+            Padding around the bounding box, in each dimension.
+            Defaults to self.__default_crop_pad__.
         output_shape : Sequence[int], optional
             The output shape of the 3D LGE-MRI data.
             If None, the original shape is returned.
@@ -254,14 +262,17 @@ class MBAS2024(_DataBase):
 
         """
         data = self.load_data(rec)
-        box = self.load_ann_box(rec, pad)
+        box = self.load_ann_box(rec, pad=pad if pad is not None else self.__default_crop_pad__)
         (x_min, x_max), (y_min, y_max), (z_min, z_max) = box
         if output_shape is None:
             return data[x_min:x_max, y_min:y_max, z_min:z_max]
         return self.resample_data(data[x_min:x_max, y_min:y_max, z_min:z_max], output_shape)
 
     def load_ann_cropped(
-        self, rec: Union[str, int], pad: Union[int, Sequence[int]] = [5, 5, 2], output_shape: Optional[Sequence[int]] = None
+        self,
+        rec: Union[str, int],
+        pad: Optional[Union[int, Sequence[int]]] = None,
+        output_shape: Optional[Sequence[int]] = None,
     ) -> np.ndarray:
         """Load the segmentation annotation of a record cropped by the bounding box of the segmentation annotation.
 
@@ -269,8 +280,9 @@ class MBAS2024(_DataBase):
         ----------
         rec : str or int
             The record name or index in self._all_records.
-        pad : int or Sequence[int], default [5, 5, 2]
-            Padding around the bounding box.
+        pad : int or Sequence[int], optional
+            Padding around the bounding box, in each dimension.
+            Defaults to self.__default_crop_pad__.
         output_shape : Sequence[int], optional
             The output shape of the segmentation annotation.
             If None, the original shape is returned.
@@ -283,7 +295,7 @@ class MBAS2024(_DataBase):
 
         """
         ann_mask = self.load_ann(rec)
-        box = self.load_ann_box(rec, pad)
+        box = self.load_ann_box(rec, pad=pad if pad is not None else self.__default_crop_pad__)
         (x_min, x_max), (y_min, y_max), (z_min, z_max) = box
         if output_shape is None:
             return ann_mask[x_min:x_max, y_min:y_max, z_min:z_max]
@@ -296,6 +308,8 @@ class MBAS2024(_DataBase):
         with_ann: bool = True,
         orthoview: bool = False,
         output_shape: Optional[Sequence[int]] = None,
+        crop: bool = False,
+        crop_pad: Optional[Union[int, Sequence[int]]] = None,
     ) -> None:
         """View the 3D LGE-MRI of a record.
 
@@ -313,6 +327,12 @@ class MBAS2024(_DataBase):
         output_shape : Sequence[int], optional
             The output shape of the 3D LGE-MRI data.
             If None, the original shape is returned.
+        crop : bool, default False
+            Whether to crop the MRI by the bounding box of the segmentation annotation.
+        crop_pad : int or Sequence[int], optional
+            Padding around the bounding box, in each dimension.
+            Defaults to self.__default_crop_pad__.
+            Valid only when crop is True.
 
         """
         if "plt" not in globals():
@@ -320,17 +340,24 @@ class MBAS2024(_DataBase):
             from matplotlib.colors import ListedColormap
         if isinstance(rec, int):
             rec = self._all_records[rec]
-        data = self.load_data(rec, output_shape=output_shape)
+        if crop:
+            data = self.load_data_cropped(rec, pad=crop_pad, output_shape=output_shape)
+        else:
+            data = self.load_data(rec, output_shape=output_shape)
         if orthoview:
             data.orthoview()
             return
         if with_ann:
-            seg_ann = self.load_ann(rec, output_shape=output_shape)
+            if crop:
+                seg_ann = self.load_ann_cropped(rec, pad=crop_pad, output_shape=output_shape)
+            else:
+                seg_ann = self.load_ann(rec, output_shape=output_shape)
         else:
             seg_ann = np.full_like(data, self.__label2id__["background"])
         if channels is None:
             if output_shape is None:
-                channels = list(range(self._df_records.loc[rec, "channels"]))
+                # channels = list(range(self._df_records.loc[rec, "channels"]))
+                channels = list(range(data.shape[-1]))
             else:
                 channels = list(range(output_shape[-1]))
         elif isinstance(channels, int):
