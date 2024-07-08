@@ -46,7 +46,7 @@ class VNet(nn.Module, SizeMixin):
         input_conv={"channels": 16, "kernel_size": 5},
         down_conv={  # down transitions (convolutional blocks)
             "channels": [32, 64, 128, 256],  # out channels
-            "blocks": [1, 2, 3, 2],
+            "blocks": [1, 2, 2, 2],
             "kernel_size": [5, 5, 5, 5],
             "dropout": [False, False, True, True],
         },

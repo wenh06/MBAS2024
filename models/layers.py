@@ -249,7 +249,7 @@ class UpTransition(nn.Module, SizeMixin):
         out = self.act1(self.norm(self.up_conv(out)))
         xcat = torch.cat((out, skipxdo), 1)  # along the channel dimension
         out = self.ops(xcat)
-        out = self.dropout2(torch.add(out, xcat))
+        out = self.act2(torch.add(out, xcat))
         return out
 
 
