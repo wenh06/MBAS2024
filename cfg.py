@@ -71,13 +71,13 @@ TrainCfg.lr_gamma = 0.1
 TrainCfg.max_lr = 8.7e-3  # for "one_cycle" scheduler, to adjust via expriments
 
 # configs of callbacks, including early stopping, checkpoint, etc.
-TrainCfg.early_stopping = CFG()  # early stopping according to challenge metric
-TrainCfg.early_stopping.min_delta = 0.001  # should be non-negative
-TrainCfg.early_stopping.patience = TrainCfg.n_epochs // 3
+# TrainCfg.early_stopping = CFG()  # early stopping according to challenge metric
+# TrainCfg.early_stopping.min_delta = 0.001  # should be non-negative
+# TrainCfg.early_stopping.patience = TrainCfg.n_epochs // 3
 TrainCfg.keep_checkpoint_max = 10
 
 # configs of loss function
-# TrainCfg.loss = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
+TrainCfg.loss = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
 # TrainCfg.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
 TrainCfg.flooding_level = 0.0  # flooding performed if positive,
 
@@ -86,6 +86,11 @@ TrainCfg.log_step = 10
 # TrainCfg.eval_every = 20
 
 TrainCfg.debug = True
+
+TrainCfg.data_shape = (576, 576, 48)
+TrainCfg.coarse_shape = (144, 144, 48)
+TrainCfg.coarse_pad = 2  # corresponding to 2 * 4 = 8 pixels in the original data
+TrainCfg.fine_shape = (256, 256, 48)
 
 
 ###############################################################################

@@ -87,6 +87,7 @@ class MBAS2024(_DataBase):
 
         self._data_file_pattern = "MBAS_\\d{3}_gt\\.nii\\.gz"
         self._ann_file_pattern = "MBAS_\\d{3}_label\\.nii\\.gz"
+        self._df_records_all = None
         self._ls_rec()
 
     def _ls_rec(self):
@@ -121,6 +122,11 @@ class MBAS2024(_DataBase):
                 ]
             )
             # fmt: on
+
+        self._df_records_all = self._df_records.copy()
+
+        # exclude the validation set in which the records are not annotated
+        self._df_records = self._df_records[self._df_records["subset"] == "Training"]
 
         self._all_records = self._df_records.index.unique().tolist()
 
@@ -204,7 +210,11 @@ class MBAS2024(_DataBase):
         return self.resample_data(nib.load(str(self.get_ann_path(rec))).get_fdata(), output_shape)
 
     def load_ann_box(
-        self, rec: Union[str, int], pad: Optional[Union[int, Sequence[int]]] = None, ann_shape: Optional[Sequence[int]] = None
+        self,
+        rec: Union[str, int],
+        pad: Optional[Union[int, Sequence[int]]] = None,
+        ann_shape: Optional[Sequence[int]] = None,
+        ann_mask: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Load the bounding box of the segmentation annotation of a record.
 
@@ -217,6 +227,10 @@ class MBAS2024(_DataBase):
             Defaults to self.__default_crop_pad__.
         ann_shape : Sequence[int], optional
             The shape of the segmentation annotation.
+            If None, the original shape is used.
+        ann_mask : numpy.ndarray, optional
+            The pre-loaded segmentation annotation.
+            If None, it will be loaded.
 
         Returns
         -------
@@ -225,7 +239,10 @@ class MBAS2024(_DataBase):
             of shape [[x_min, x_max], [y_min, y_max], [z_min, z_max]].
 
         """
-        ann_mask = self.load_ann(rec, output_shape=ann_shape)
+        if ann_mask is None:
+            ann_mask = self.load_ann(rec, output_shape=ann_shape)
+        elif ann_shape is not None and ann_mask.shape != ann_shape:
+            ann_mask = self.resample_data(ann_mask, ann_shape)
         x, y, z = np.where(ann_mask != self.__label2id__["background"])
         if pad is None:
             pad = self.__default_crop_pad__
