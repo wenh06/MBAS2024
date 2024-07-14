@@ -100,3 +100,46 @@ TrainCfg.fine_shape = (256, 256, 48)
 
 
 ModelCfg = CFG()
+
+# the model to be used
+ModelCfg.seg_model_name = "vnet"  # "vnet", "nestedvnet"
+ModelCfg.seg_loss = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
+ModelCfg.seg_loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
+
+ModelCfg.vnet = CFG(
+    activation="mish",
+    conv_ordering="cna",
+    input_conv={"channels": 16, "kernel_size": 5},
+    down_conv={  # down transitions (convolutional blocks)
+        "channels": [32, 64, 128, 256],  # out channels
+        "blocks": [1, 2, 2, 2],
+        "kernel_size": [5, 5, 5, 5],
+        "dropout": [False, False, True, True],
+    },
+    up_conv={  # up transitions (transposed convolutional blocks)
+        "channels": [256, 128, 64, 32],  # out channels
+        "blocks": [2, 2, 1, 1],
+        "kernel_size": [5, 5, 5, 5],
+        "dropout": [True, True, False, False],
+    },
+    output_conv={"kernel_size": 5},
+)
+
+ModelCfg.nested_vnet = CFG(
+    activation="mish",
+    conv_ordering="cna",
+    input_conv={"channels": 16, "kernel_size": 5},
+    down_conv={  # down transitions (convolutional blocks)
+        "channels": [32, 64, 128, 256],  # out channels
+        "blocks": [1, 2, 2, 2],
+        "kernel_size": [5, 5, 5, 5],
+        "dropout": [False, False, True, True],
+    },
+    up_conv={  # up transitions (transposed convolutional blocks)
+        "channels": [256, 128, 64, 32],  # out channels
+        "blocks": [2, 2, 1, 1],
+        "kernel_size": [5, 5, 5, 5],
+        "dropout": [True, True, False, False],
+    },
+    output_conv={"kernel_size": 5},
+)
