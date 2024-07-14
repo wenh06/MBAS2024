@@ -68,6 +68,11 @@ class MBAS2024Trainer(BaseTrainer):
         device: Optional[torch.device] = None,
         **kwargs: Any,
     ) -> None:
+        assert train_config.stage in [0, 1], "stage must be 0 or 1"
+        if train_config.stage == 0:
+            train_config.classes = train_config.stage0_classes
+        else:
+            train_config.classes = train_config.stage1_classes
         super().__init__(
             model=model,
             dataset_cls=MBAS2024Dataset,
@@ -76,7 +81,6 @@ class MBAS2024Trainer(BaseTrainer):
             device=device,
             **kwargs,
         )
-        assert self.train_config.stage in [0, 1], "stage must be 0 or 1"
 
     def _setup_dataloaders(
         self,
@@ -97,7 +101,7 @@ class MBAS2024Trainer(BaseTrainer):
         if train_dataset is None:
             train_dataset = self.dataset_cls(
                 config=self.train_config,
-                stage=self.stage,
+                stage=self.train_config.stage,
             )
 
         if self.train_config.debug:
@@ -148,6 +152,10 @@ class MBAS2024Trainer(BaseTrainer):
 
             # NOTE: loss is computed in the model, and kept in the out_tensors
             loss = out_tensors["total_loss"]
+            # if trained on multiple GPUs (N), then loss has shape (N,)
+            # in order to run loss.backward(), the loss should be averaged
+            # over all GPUs
+            loss = loss.mean()
 
             if self.train_config.flooding_level > 0:
                 flood = (loss - self.train_config.flooding_level).abs() + self.train_config.flooding_level
@@ -349,7 +357,7 @@ if __name__ == "__main__":
     if torch.cuda.device_count() > 1:
         model = DP(model)
         # model = DDP(model)
-    model.to(device=device)
+    model = model.to(device=device)
 
     trainer = MBAS2024Trainer(
         model=model,

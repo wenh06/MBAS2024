@@ -37,6 +37,17 @@ BaseCfg.model_dir.mkdir(exist_ok=True)
 BaseCfg.torch_dtype = torch.float32  # "double"
 BaseCfg.np_dtype = np.float32
 
+BaseCfg.stage0_classes = [
+    "background",
+    "atrium",
+]
+BaseCfg.stage1_classes = [
+    "background",
+    "right atrium",
+    "left atrium",
+    "left & right atrial walls",
+]
+
 
 ###############################################################################
 # training configurations for machine learning and deep learning

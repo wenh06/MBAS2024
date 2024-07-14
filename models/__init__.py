@@ -140,7 +140,12 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
         """Make the input tensor into a batched tensor,
         and perform necessary preprocessing.
         """
-        x = torch.tensor(x, dtype=self.dtype, device=self.device)
+        if isinstance(x, (list, tuple)):
+            x = torch.stack([item if isinstance(item, torch.Tensor) else torch.from_numpy(item) for item in x])
+        elif not isinstance(x, torch.Tensor):
+            x = torch.from_numpy(x)
+        # x = torch.tensor(x, dtype=self.dtype, device=self.device)
+        x = x.to(device=self.device, dtype=self.dtype)
         for _ in range(5 - x.ndim):
             x = x.unsqueeze(0)
         # x of shape (B, C, H, W, D)
