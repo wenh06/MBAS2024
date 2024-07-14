@@ -54,7 +54,7 @@ TrainCfg.n_epochs = 300
 # TODO: automatic adjust batch size according to GPU capacity
 # https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
 # GPU memory limit of the Challenge is 64GB
-TrainCfg.batch_size = 12  # 64, 128, 256
+TrainCfg.batch_size = 4
 
 # configs of optimizers and lr_schedulers
 TrainCfg.optimizer = "adamw_amsgrad"  # "sgd", "adam", "adamw"
@@ -91,6 +91,9 @@ TrainCfg.data_shape = (576, 576, 48)
 TrainCfg.coarse_shape = (144, 144, 48)
 TrainCfg.coarse_pad = 2  # corresponding to 2 * 4 = 8 pixels in the original data
 TrainCfg.fine_shape = (256, 256, 48)
+
+
+TrainCfg.stage = None  # 0 or 1, should be set before training
 
 
 ###############################################################################

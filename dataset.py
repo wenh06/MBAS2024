@@ -3,7 +3,7 @@
 
 from copy import deepcopy
 from pathlib import Path
-from typing import Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 import torch
@@ -58,13 +58,19 @@ class MBAS2024Dataset(Dataset, ReprMixin):
     def __len__(self):
         return len(self.reader)
 
-    def __getitem__(self, idx: Union[int, Sequence[int], slice]) -> Tuple[np.ndarray, np.ndarray]:
+    def __getitem__(self, idx: Union[int, Sequence[int], slice]) -> Dict[str, np.ndarray]:
         if len(self.__cache) == 0:
             self.__load_all_data()
         if self.stage == 0:
-            return self.__cache["coarse_data"][idx], self.__cache["coarse_mask"][idx]
+            return {
+                "image": self.__cache["coarse_data"][idx],
+                "mask": self.__cache["coarse_mask"][idx],
+            }
         elif self.stage == 1:
-            return self.__cache["fine_data"][idx], self.__cache["fine_mask"][idx]
+            return {
+                "image": self.__cache["fine_data"][idx],
+                "mask": self.__cache["fine_mask"][idx],
+            }
         else:
             raise ValueError(f"Invalid stage: {self.stage}")
 
@@ -152,3 +158,7 @@ class MBAS2024Dataset(Dataset, ReprMixin):
             torch.tensor(self.__cache["coarse_mask"], dtype=torch.int64), num_classes=2
         ).numpy()
         self.__cache["fine_mask"] = F.one_hot(torch.tensor(self.__cache["fine_mask"], dtype=torch.int64), num_classes=4).numpy()
+
+    @property
+    def cache(self) -> Dict[str, np.ndarray]:
+        return self.__cache
