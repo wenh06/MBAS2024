@@ -151,3 +151,5 @@ eval_res
 *.npy
 
 !images/*.pdf
+
+mask_predictions
