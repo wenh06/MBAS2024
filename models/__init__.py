@@ -51,14 +51,13 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
     __DEBUG__ = True
     __name__ = "MultiHead_MBAS2024"
 
-    def __init__(self, stage: int, config: Optional[CFG] = None, **kwargs: Any) -> None:
+    def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> None:
         super().__init__()
         self.__config = deepcopy(ModelCfg)
         if config is not None:
             self.__config.update((config or {}).copy())
-        self.stage = stage
-        assert self.stage in [0, 1], "stage must be 0 or 1"
-        nums_classes = 2 if stage == 0 else 4
+        assert self.config.stage in [0, 1], "stage must be 0 or 1"
+        nums_classes = 2 if self.config.stage == 0 else 4
         # self.preprocessor = None
         # self.augmentor = None
         if self.config.seg_model_name.lower() in ["nestedvnet", "nested_vnet"]:

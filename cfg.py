@@ -58,10 +58,10 @@ TrainCfg = deepcopy(BaseCfg)
 TrainCfg.checkpoints = BaseCfg.checkpoints
 TrainCfg.checkpoints.mkdir(exist_ok=True)
 
-TrainCfg.train_ratio = 0.9
+# TrainCfg.train_ratio = 0.9
 
 # configs of training epochs, batch, etc.
-TrainCfg.n_epochs = 300
+TrainCfg.n_epochs = 100
 # TODO: automatic adjust batch size according to GPU capacity
 # https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
 # GPU memory limit of the Challenge is 64GB
@@ -157,3 +157,5 @@ ModelCfg.nested_vnet = CFG(
     },
     output_conv={"kernel_size": 5},
 )
+
+ModelCfg.stage = None  # 0 or 1, should be set before training

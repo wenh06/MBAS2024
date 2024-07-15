@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Optional, Sequence, Union, List
 
 import nibabel as nib
 import numpy as np
@@ -146,7 +146,7 @@ class MBAS2024(_DataBase):
         """
         if isinstance(rec, int):
             rec = self._all_records[rec]
-        return self._df_records.loc[rec, "path"]
+        return self._df_records_all.loc[rec, "path"]
 
     def get_ann_path(self, rec: Union[str, int]) -> Path:
         """Get the path of the segmentation annotation of a record.
@@ -408,6 +408,10 @@ class MBAS2024(_DataBase):
     @property
     def url(self) -> str:
         return "https://codalab.lisn.upsaclay.fr/competitions/18516"
+
+    @property
+    def validation_set(self) -> List[str]:
+        return self._df_records_all[self._df_records_all["subset"] == "Validation"].index.tolist()
 
     @staticmethod
     def resample_data(data: np.ndarray, shape: Sequence[int]) -> np.ndarray:
