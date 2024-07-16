@@ -15,7 +15,6 @@ and biomarker identification (like atrium volume and fibrosis) using 200 multi-c
 with each scan meticulously labeled by three experts. These new AI and clinical methodologies not only play a significant paradigm shift in cardiac analysis
 but also have the potential to be applied across various medical domains, aiming to refine ablation strategies for treating persistent atrial fibrillation.
 
-
 ## LG-MRI
 
 to be added....
