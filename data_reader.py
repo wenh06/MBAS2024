@@ -54,17 +54,17 @@ class MBAS2024(_DataBase):
 
     __class_map__ = {
         0: "background",
-        1: "right atrium",
-        2: "left atrium",
-        3: "left & right atrial walls",
+        1: "left & right atrial walls",
+        2: "right atrium",
+        3: "left atrium",
     }
     __label2id__ = {v: k for k, v in __class_map__.items()}
     __id2label__ = {k: v for k, v in __class_map__.items()}
     __palette__ = {
         0: (0, 0, 0, 0),  # "background" (transparent)
-        1: "red",  # "right atrium"
-        2: "blue",  # "left atrium"
-        3: "yellow",  # "left & right atrial walls"
+        1: "yellow",  # "left & right atrial walls"
+        2: "red",  # "right atrium"
+        3: "blue",  # "left atrium"
     }
     __default_crop_pad__ = [7, 7, 3]
 

@@ -43,9 +43,9 @@ BaseCfg.stage0_classes = [
 ]
 BaseCfg.stage1_classes = [
     "background",
+    "left & right atrial walls",
     "right atrium",
     "left atrium",
-    "left & right atrial walls",
 ]
 
 
