@@ -54,4 +54,6 @@ def mclahe(
     pad_hist = np.column_stack((kernel_size // 2, (kernel_size + 1) // 2)) + pad_data
     hist_paddata = np.pad(output, pad_data, mode="symmetric")
 
+    hist_padded_init = np.zeros_like(hist_paddata)
+
     raise NotImplementedError
