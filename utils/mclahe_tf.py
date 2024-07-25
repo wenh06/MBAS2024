@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Original code from
+Original code (reformatted using pre-commit) from
 https://github.com/VincentStimper/mclahe/blob/master/mclahe/core.py
 and
 https://github.com/VincentStimper/mclahe/blob/master/mclahe/utils.py
@@ -14,6 +14,9 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import gen_math_ops
+
+tf.compat.v1.disable_eager_execution()
+
 
 __all__ = ["mclahe"]
 
@@ -170,8 +173,8 @@ def mclahe(x, kernel_size=None, n_bins=128, clip_limit=0.01, adaptive_hist_range
     x_hist_padded = np.pad(x, padding_hist, "symmetric")
 
     # Set up tf graph
-    with tf.variable_scope("clahe") as scope:
-        tf_x_hist_padded_init = tf.placeholder(tf.float32, shape=x_hist_padded.shape)
+    with tf.compat.v1.variable_scope("clahe") as scope:
+        tf_x_hist_padded_init = tf.compat.v1.placeholder(tf.float32, shape=x_hist_padded.shape)
         tf_x_hist_padded = tf.Variable(tf_x_hist_padded_init)
         tf_x_padded = tf.slice(tf_x_hist_padded, kernel_size // 2, x_shape + padding_x_length)
 
@@ -192,12 +195,12 @@ def mclahe(x, kernel_size=None, n_bins=128, clip_limit=0.01, adaptive_hist_range
         # Get histogram
         if adaptive_hist_range:
             hist_ex_shape = np.concatenate((n_blocks_hist, [1] * dim))
-            tf_x_hist_ex_init = tf.placeholder(tf.float32, shape=n_blocks_hist)
+            tf_x_hist_ex_init = tf.compat.v1.placeholder(tf.float32, shape=n_blocks_hist)
             tf_x_hist_min = tf.Variable(tf_x_hist_ex_init, dtype=tf.float32)
             tf_x_hist_max = tf.reduce_max(tf_x_hist, np.arange(-dim, 0))
             tf_x_hist_norm = tf.Variable(tf_x_hist_ex_init, dtype=tf.float32)
-            tf_get_hist_min = tf.assign(tf_x_hist_min, tf.reduce_min(tf_x_hist, np.arange(-dim, 0)))
-            tf_get_hist_norm = tf.assign(
+            tf_get_hist_min = tf.compat.v1.assign(tf_x_hist_min, tf.reduce_min(tf_x_hist, np.arange(-dim, 0)))
+            tf_get_hist_norm = tf.compat.v1.assign(
                 tf_x_hist_norm,
                 tf.where(tf.equal(tf_x_hist_min, tf_x_hist_max), tf.ones_like(tf_x_hist_min), tf_x_hist_max - tf_x_hist_min),
             )
@@ -219,15 +222,15 @@ def mclahe(x, kernel_size=None, n_bins=128, clip_limit=0.01, adaptive_hist_range
         tf_mapping = (tf_cdf - tf_cdf_min) / tf_cdf_norm
 
         map_shape = np.concatenate((n_blocks_hist, [n_bins]))
-        tf_map_init = tf.placeholder(tf.float32, shape=map_shape)
+        tf_map_init = tf.compat.v1.placeholder(tf.float32, shape=map_shape)
         tf_map = tf.Variable(tf_map_init, dtype=tf.float32)
-        tf_get_map = tf.assign(tf_map, tf_mapping)
+        tf_get_map = tf.compat.v1.assign(tf_map, tf_mapping)
 
         # Prepare initializer
-        tf_x_block_init = tf.placeholder(tf.float32, shape=shape_x_block)
+        tf_x_block_init = tf.compat.v1.placeholder(tf.float32, shape=shape_x_block)
 
         # Set up slice of data and map
-        tf_slice_begin = tf.placeholder(tf.int32, shape=(dim,))
+        tf_slice_begin = tf.compat.v1.placeholder(tf.int32, shape=(dim,))
         tf_map_slice_begin = tf.concat([tf_slice_begin, [0]], 0)
         tf_map_slice_size = tf.constant(np.concatenate((n_blocks, [n_bins])), dtype=tf.int32)
         tf_map_slice = tf.slice(tf_map, tf_map_slice_begin, tf_map_slice_size)
@@ -244,22 +247,22 @@ def mclahe(x, kernel_size=None, n_bins=128, clip_limit=0.01, adaptive_hist_range
         else:
             # Global bins
             tf_bin = tf.Variable(tf.cast(tf_x_block_init, tf.int32), dtype=tf.int32)
-            tf_get_bin = tf.assign(tf_bin, tf.histogram_fixed_width_bins(tf_x_block, [0.0, 1.0], nbins=n_bins))
+            tf_get_bin = tf.compat.v1.assign(tf_bin, tf.histogram_fixed_width_bins(tf_x_block, [0.0, 1.0], nbins=n_bins))
         # Apply map
         tf_mapped_sub = tf_batch_gather(tf_map_slice, tf_bin, dim)
         # Apply coefficients
-        tf_coeff = tf.placeholder(tf.float32)
+        tf_coeff = tf.compat.v1.placeholder(tf.float32)
         tf_res_sub = tf.Variable(tf_x_block_init, dtype=tf.float32)
-        tf_apply_map = tf.assign(tf_res_sub, tf_mapped_sub)
-        tf_apply_coeff = tf.assign(tf_res_sub, tf_coeff * tf_res_sub)
+        tf_apply_map = tf.compat.v1.assign(tf_res_sub, tf_mapped_sub)
+        tf_apply_coeff = tf.compat.v1.assign(tf_res_sub, tf_coeff * tf_res_sub)
         # Update results
         tf_res = tf.Variable(tf_x_block_init, dtype=tf.float32)
-        tf_update_res = tf.assign_add(tf_res, tf_res_sub)
+        tf_update_res = tf.compat.v1.assign_add(tf_res, tf_res_sub)
 
         # Rescaling
         tf_res_min, tf_res_max = (tf.reduce_min(tf_res), tf.reduce_max(tf_res))
         tf_res_norm = (tf_res - tf_res_min) / (tf_res_max - tf_res_min)
-        tf_rescale = tf.assign(tf_res, tf_res_norm)
+        tf_rescale = tf.compat.v1.assign(tf_res, tf_res_norm)
 
         # Reshape result
         new_shape = tuple((axis, axis + dim) for axis in range(dim))
@@ -274,15 +277,15 @@ def mclahe(x, kernel_size=None, n_bins=128, clip_limit=0.01, adaptive_hist_range
         if use_gpu:
             config = None
         else:
-            config = tf.ConfigProto(device_count={"GPU": 0})
+            config = tf.compat.v1.ConfigProto(device_count={"GPU": 0})
 
-        with tf.Session(config=config) as sess:
+        with tf.compat.v1.Session(config=config) as sess:
             map_init = np.zeros(map_shape, dtype=np.float32)
             x_block_init = np.zeros(shape_x_block, dtype=np.float32)
             # Initialize vars for local hist range if needed
             if adaptive_hist_range:
                 x_hist_ex_init = np.zeros(n_blocks_hist, dtype=np.float32)
-                tf_var_init = tf.initializers.variables(
+                tf_var_init = tf.compat.v1.variables_initializer(
                     [tf_x_hist_padded, tf_map, tf_res, tf_res_sub, tf_x_hist_min, tf_x_hist_norm]
                 )
                 sess.run(
@@ -295,7 +298,7 @@ def mclahe(x, kernel_size=None, n_bins=128, clip_limit=0.01, adaptive_hist_range
                     },
                 )
             else:
-                tf_var_init = tf.initializers.variables([tf_x_hist_padded, tf_map, tf_bin, tf_res, tf_res_sub])
+                tf_var_init = tf.compat.v1.variables_initializer([tf_x_hist_padded, tf_map, tf_bin, tf_res, tf_res_sub])
                 sess.run(
                     tf_var_init,
                     feed_dict={tf_x_hist_padded_init: x_hist_padded, tf_map_init: map_init, tf_x_block_init: x_block_init},
