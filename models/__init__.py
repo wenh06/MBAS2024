@@ -1,5 +1,5 @@
 """
-MBAS2024 models
+MBAS2024 model.
 
 It is a multi-head model for MBAS2024 challenge.
 """
