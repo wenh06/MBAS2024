@@ -31,3 +31,4 @@ bib-lookup
 diff-binom-confint
 Pillow
 scikit-image
+torchio
