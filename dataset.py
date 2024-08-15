@@ -16,6 +16,7 @@ from tqdm.auto import tqdm
 
 from cfg import TrainCfg
 from data_reader import MBAS2024
+from utils.mclahe_tf import mclahe
 
 __all__ = [
     "MBAS2024Dataset",
@@ -84,17 +85,18 @@ class MBAS2024Dataset(Dataset, ReprMixin):
         self.__cache["coarse_mask"] = np.zeros((len(self.reader), *self.config.coarse_shape), dtype=np.float32)
         self.__cache["fine_data"] = np.zeros((len(self.reader), 1, *self.config.fine_shape), dtype=np.float32)
         self.__cache["fine_mask"] = np.zeros((len(self.reader), *self.config.fine_shape), dtype=np.float32)
-        with tqdm(range(len(self.reader)), desc="Loading data", unit="image", miniters=1) as pbar:
+        with tqdm(range(len(self.reader)), desc="Loading data", unit="image", miniters=1, dynamic_ncols=True) as pbar:
             for idx in pbar:
                 # load data and annotation
                 data = self.reader.load_data(idx)
                 mask = self.reader.load_ann(idx)
                 (x_min, x_max), (y_min, y_max), (z_min, z_max) = self.reader.load_ann_box(idx)
 
+                if self.config.apply_mclahe:
+                    data = mclahe(data)
+
                 # normalize the data
                 data = (data - np.mean(data)) / (np.std(data) + 1e-8)  # avoid division by zero
-
-                # TODO: other preprocessing steps including CLAHE, etc.
 
                 # adjust the shape of the data
                 x_size, y_size, z_size = data.shape

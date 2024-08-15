@@ -21,6 +21,7 @@ from tqdm.auto import tqdm
 from cfg import TrainCfg
 from data_reader import MBAS2024
 from models import MultiHead_MBAS2024
+from utils.mclahe_tf import mclahe  # noqa: F401
 
 
 def run_pipeline(
@@ -46,6 +47,9 @@ def run_pipeline(
         Predicted segmentation mask(s).
 
     """
+    assert stage0_model.config.get("apply_mclahe", False) == stage1_model.config.get(
+        "apply_mclahe", False
+    ), "apply_mclahe should be consistent"
     if isinstance(img, np.ndarray) and img.ndim == 3:
         return _run_pipeline(img, stage0_model, stage1_model)
 
@@ -80,41 +84,58 @@ def _run_pipeline(
     """
     original_shape = img.shape
     img_raw = img.copy()
+    if stage0_model.config.get("apply_mclahe", False):
+        img_raw = mclahe(img_raw)
 
     if original_shape[0] < TrainCfg.data_shape[0]:
         # pad by zeros
         pad_x = (TrainCfg.data_shape[0] - original_shape[0]) // 2
         shift_x = -pad_x
-        img_raw = np.pad(img_raw, ((pad_x, TrainCfg.data_shape[0] - original_shape[0] - pad_x), (0, 0), (0, 0)), mode="constant", constant_values=0)
+        img_raw = np.pad(
+            img_raw,
+            ((pad_x, TrainCfg.data_shape[0] - original_shape[0] - pad_x), (0, 0), (0, 0)),
+            mode="constant",
+            constant_values=0,
+        )
     elif original_shape[0] > TrainCfg.data_shape[0]:
         # crop
         crop_x = (original_shape[0] - TrainCfg.data_shape[0]) // 2
         shift_x = crop_x
-        img_raw = img_raw[crop_x:crop_x + TrainCfg.data_shape[0]]
+        img_raw = img_raw[crop_x : crop_x + TrainCfg.data_shape[0]]
     else:
         shift_x = 0
     if original_shape[1] < TrainCfg.data_shape[1]:
         # pad by zeros
         pad_y = (TrainCfg.data_shape[1] - original_shape[1]) // 2
         shift_y = -pad_y
-        img_raw = np.pad(img_raw, ((0, 0), (pad_y, TrainCfg.data_shape[1] - original_shape[1] - pad_y), (0, 0)), mode="constant", constant_values=0)
+        img_raw = np.pad(
+            img_raw,
+            ((0, 0), (pad_y, TrainCfg.data_shape[1] - original_shape[1] - pad_y), (0, 0)),
+            mode="constant",
+            constant_values=0,
+        )
     elif original_shape[1] > TrainCfg.data_shape[1]:
         # crop
         crop_y = (original_shape[1] - TrainCfg.data_shape[1]) // 2
         shift_y = crop_y
-        img_raw = img_raw[:, crop_y:crop_y + TrainCfg.data_shape[1]]
+        img_raw = img_raw[:, crop_y : crop_y + TrainCfg.data_shape[1]]
     else:
         shift_y = 0
     if original_shape[2] < TrainCfg.data_shape[2]:
         # pad by zeros
         pad_z = (TrainCfg.data_shape[2] - original_shape[2]) // 2
         shift_z = -pad_z
-        img_raw = np.pad(img_raw, ((0, 0), (0, 0), (pad_z, TrainCfg.data_shape[2] - original_shape[2] - pad_z)), mode="constant", constant_values=0)
+        img_raw = np.pad(
+            img_raw,
+            ((0, 0), (0, 0), (pad_z, TrainCfg.data_shape[2] - original_shape[2] - pad_z)),
+            mode="constant",
+            constant_values=0,
+        )
     elif original_shape[2] > TrainCfg.data_shape[2]:
         # crop
         crop_z = (original_shape[2] - TrainCfg.data_shape[2]) // 2
         shift_z = crop_z
-        img_raw = img_raw[:, :, crop_z:crop_z + TrainCfg.data_shape[2]]
+        img_raw = img_raw[:, :, crop_z : crop_z + TrainCfg.data_shape[2]]
     else:
         shift_z = 0
 
@@ -149,19 +170,34 @@ def _run_pipeline(
     if shift_x < 0:
         # original -> raw by padding
         # then raw -> original by cropping
-        pred_mask = pred_mask[-shift_x:original_shape[0] - shift_x, :, :]
+        pred_mask = pred_mask[-shift_x : original_shape[0] - shift_x, :, :]
     elif shift_x > 0:
         # original -> raw by cropping
         # then raw -> original by padding
-        pred_mask = np.pad(pred_mask, ((shift_x, original_shape[0] - pred_mask.shape[0] - shift_x), (0, 0), (0, 0)), mode="constant", constant_values=0)
+        pred_mask = np.pad(
+            pred_mask,
+            ((shift_x, original_shape[0] - pred_mask.shape[0] - shift_x), (0, 0), (0, 0)),
+            mode="constant",
+            constant_values=0,
+        )
     if shift_y < 0:
-        pred_mask = pred_mask[:, -shift_y:original_shape[1] - shift_y, :]
+        pred_mask = pred_mask[:, -shift_y : original_shape[1] - shift_y, :]
     elif shift_y > 0:
-        pred_mask = np.pad(pred_mask, ((0, 0), (shift_y, original_shape[1] - pred_mask.shape[1] - shift_y), (0, 0)), mode="constant", constant_values=0)
+        pred_mask = np.pad(
+            pred_mask,
+            ((0, 0), (shift_y, original_shape[1] - pred_mask.shape[1] - shift_y), (0, 0)),
+            mode="constant",
+            constant_values=0,
+        )
     if shift_z < 0:
-        pred_mask = pred_mask[:, :, -shift_z:original_shape[2] - shift_z]
+        pred_mask = pred_mask[:, :, -shift_z : original_shape[2] - shift_z]
     elif shift_z > 0:
-        pred_mask = np.pad(pred_mask, ((0, 0), (0, 0), (shift_z, original_shape[2] - pred_mask.shape[2] - shift_z), (0, 0)), mode="constant", constant_values=0)
+        pred_mask = np.pad(
+            pred_mask,
+            ((0, 0), (0, 0), (shift_z, original_shape[2] - pred_mask.shape[2] - shift_z), (0, 0)),
+            mode="constant",
+            constant_values=0,
+        )
 
     print(f"predicted mask shape: {pred_mask.shape}")
 
@@ -194,14 +230,17 @@ if __name__ == "__main__":
 
     dr = MBAS2024(args.db_dir)
 
-    model_dir = Path(args.model_dir).resolve()
+    model_dir = Path(args.model_dir).expanduser().resolve()
     stage0_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage0-model.pth.tar")[0]
     stage1_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage1-model.pth.tar")[0]
 
-    output_dir = Path(args.output_dir).resolve()
+    output_dir = Path(args.output_dir).expanduser().resolve()
+    output_dir.mkdir(exist_ok=True, parents=True)
 
     for rec in tqdm(dr.validation_set):
         img = dr.load_data(rec)
         pred_mask = run_pipeline(img, stage0_model, stage1_model)
         nib.save(nib.Nifti1Image(pred_mask, affine=np.eye(4)), output_dir / f"{rec}_label.nii.gz")
-        
+
+    # example usage:
+    # python pipeline.py --db-dir /path/to/db --model-dir /path/to/models --output-dir /path/to/output

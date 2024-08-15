@@ -73,6 +73,10 @@ class MBAS2024Trainer(BaseTrainer):
             train_config.classes = train_config.stage0_classes
         else:
             train_config.classes = train_config.stage1_classes
+        # check if the "apply_mclahe" is consistent in the model and the training configuration
+        assert (
+            model_config.apply_mclahe == train_config.apply_mclahe
+        ), "apply_mclahe should be consistent in the model and the training configuration"
         super().__init__(
             model=model,
             dataset_cls=MBAS2024Dataset,
@@ -217,7 +221,7 @@ class MBAS2024Trainer(BaseTrainer):
             - "total_loss": the total loss for the training step
 
         """
-        image = input_tensors.pop("image")
+        image = self._model.get_input_tensors(input_tensors.pop("image"))
         out_tensors = self.model(image, input_tensors)
         return out_tensors
 
@@ -255,8 +259,8 @@ class MBAS2024Trainer(BaseTrainer):
                 all_outputs.append(self._model.inference(image))  # of type MBAS2024Outputs
                 pbar.update(len(image))
 
-        if self.val_train_loader is not None:
-            pass  # TODO: implement the evaluation on the training set
+        # if self.val_train_loader is not None:
+        #     pass  # TODO: implement the evaluation on the training set
 
         eval_res = compute_challenge_metrics(labels=all_labels, outputs=all_outputs)
 

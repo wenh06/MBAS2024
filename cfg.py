@@ -103,6 +103,7 @@ TrainCfg.coarse_shape = (144, 144, 48)
 TrainCfg.coarse_pad = 2  # corresponding to 2 * 4 = 8 pixels in the original data
 TrainCfg.fine_shape = (256, 256, 48)
 
+TrainCfg.apply_mclahe = True
 
 TrainCfg.stage = None  # 0 or 1, should be set before training
 
@@ -114,6 +115,8 @@ TrainCfg.stage = None  # 0 or 1, should be set before training
 
 
 ModelCfg = CFG()
+
+ModelCfg.apply_mclahe = TrainCfg.apply_mclahe
 
 # the model to be used
 ModelCfg.seg_model_name = "vnet"  # "vnet", "nestedvnet"

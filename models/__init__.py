@@ -8,6 +8,7 @@ import os
 from copy import deepcopy
 from typing import Any, Dict, Optional
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch_ecg.cfg import CFG, DEFAULTS  # noqa: F401
@@ -19,6 +20,7 @@ from torch_ecg.utils.utils_nn import CkptMixin, SizeMixin
 from cfg import ModelCfg
 from const import INPUT_IMAGE_TYPES, MODEL_CACHE_DIR
 from outputs import MBAS2024Outputs
+from utils.mclahe_tf import mclahe  # noqa: F401
 
 from .nested_vnet import NestedVNet
 from .vnet import VNet
@@ -83,6 +85,7 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
         labels : dict, optional
             Labels for training, including
             - "mask": optional for training the segmentation head.
+            - "weight_mask": optional for training the segmentation head.
 
         Returns
         -------
@@ -91,21 +94,23 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
             and the loss if any of the labels is provided.
 
         """
-        seg_logits = self.segmentation_head(img)  # (B, H, W, D, C), C is the number of classes
+        seg_logits = self.segmentation_head(img.to(device=self.device))  # (B, C, H, W, D)
         seg_mask = torch.softmax(seg_logits, dim=-1).argmax(dim=-1)  # (B, H, W, D)
         output = {"seg_logits": seg_logits, "seg_mask": seg_mask}
         if self.bbox_head is not None:
             raise NotImplementedError
         if labels is not None:
             output["total_loss"] = 0
-            output["seg_loss"] = self.segmentation_loss(seg_logits, labels["mask"])
+            if self.config.seg_loss == "BCEWithLogitsWithClassWeightLoss":
+                output["seg_loss"] = self.segmentation_loss(
+                    seg_logits, labels["mask"].to(self.device), labels["weight_mask"].to(self.device)
+                )
+            else:
+                output["seg_loss"] = self.segmentation_loss(seg_logits, labels["mask"].to(self.device))
             output["total_loss"] += output["seg_loss"]
             if self.bbox_head is not None and "bbox" in labels:
                 raise NotImplementedError
         return output
-
-    # def freeze_backbone(self, freeze: bool = True) -> None:
-    #     raise NotImplementedError
 
     @torch.no_grad()
     def inference(self, img: INPUT_IMAGE_TYPES) -> MBAS2024Outputs:
@@ -124,6 +129,18 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
         """
         original_mode = self.training
         self.eval()
+        # if self.config.apply_mclahe:
+        #     if isinstance(img, (list, tuple)):
+        #         img = [mclahe(item.cpu().numpy()) if isinstance(item, torch.Tensor) else mclahe(item) for item in img]
+        #     elif isinstance(img, np.ndarray):
+        #         # apply mclahe to the last 3 dimensions
+        #         shape = img.shape
+        #         img = np.array([mclahe(item) for item in img.reshape(-1, *shape[-3:])]).reshape(shape)
+        #     elif isinstance(img, torch.Tensor):
+        #         shape = tuple(img.shape)
+        #         img = np.array([mclahe(item) for item in img.cpu().numpy().reshape(-1, *shape[-3:])]).reshape(shape)
+        #     else:
+        #         raise ValueError(f"Unsupported input type: {type(img)}")
         input_tensors = self.get_input_tensors(img)
         output = self.forward(input_tensors)
         self.train(original_mode)
@@ -135,23 +152,36 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
     def config(self) -> CFG:
         return self.__config
 
-    def get_input_tensors(self, x: INPUT_IMAGE_TYPES) -> torch.Tensor:
+    def get_input_tensors(self, img: INPUT_IMAGE_TYPES) -> torch.Tensor:
         """Make the input tensor into a batched tensor,
         and perform necessary preprocessing.
+
+        Parameters
+        ----------
+        img : numpy.ndarray or torch.Tensor or list
+            Input LGE-MRI image(s).
+
+        Returns
+        -------
+        torch.Tensor
+            The input tensor.
+
         """
-        if isinstance(x, (list, tuple)):
-            x = torch.stack([item if isinstance(item, torch.Tensor) else torch.from_numpy(item) for item in x])
-        elif not isinstance(x, torch.Tensor):
-            x = torch.from_numpy(x)
-        # x = torch.tensor(x, dtype=self.dtype, device=self.device)
-        x = x.to(device=self.device, dtype=self.dtype)
-        for _ in range(5 - x.ndim):
-            x = x.unsqueeze(0)
-        # x of shape (B, C, H, W, D)
+        if isinstance(img, (list, tuple)):
+            img = torch.stack([item if isinstance(item, torch.Tensor) else torch.from_numpy(item) for item in img])
+        elif isinstance(img, np.ndarray):
+            img = torch.from_numpy(img)
+        elif isinstance(img, torch.Tensor):
+            pass
+        else:
+            raise ValueError(f"Unsupported input type: {type(img)}")
+        img = img.to(device=self.device, dtype=self.dtype)
+        for _ in range(5 - img.ndim):
+            img = img.unsqueeze(0)
+        # img of shape (B, C, H, W, D)
         # sample-wise normalization
-        x = (x - x.mean(dim=(1, 2, 3, 4), keepdim=True)) / (x.std(dim=(1, 2, 3, 4), keepdim=True) + 1e-6)
-        # TODO: other preprocessing steps including CLAHE, etc.
-        return x
+        img = (img - img.mean(dim=(1, 2, 3, 4), keepdim=True)) / (img.std(dim=(1, 2, 3, 4), keepdim=True) + 1e-6)
+        return img
 
     def _setup_criterion(self, loss: str, loss_kw: Optional[Dict[str, Any]] = None) -> nn.Module:
         """Setup the loss function.
