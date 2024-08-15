@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Optional, Sequence, Union, List
+from typing import Any, List, Optional, Sequence, Union
 
 import nibabel as nib
 import numpy as np
@@ -327,6 +327,7 @@ class MBAS2024(_DataBase):
         output_shape: Optional[Sequence[int]] = None,
         crop: bool = False,
         crop_pad: Optional[Union[int, Sequence[int]]] = None,
+        data: Optional[np.ndarray] = None,
     ) -> None:
         """View the 3D LGE-MRI of a record.
 
@@ -350,14 +351,21 @@ class MBAS2024(_DataBase):
             Padding around the bounding box, in each dimension.
             Defaults to self.__default_crop_pad__.
             Valid only when crop is True.
+        data : numpy.ndarray, optional
+            The pre-loaded 3D LGE-MRI data.
+            If None, it will be loaded.
+            This is useful when the data is processed, i.e., using CLAHE, etc.
 
         """
         if "plt" not in globals():
             import matplotlib.pyplot as plt
+        if "ListedColormap" not in globals():
             from matplotlib.colors import ListedColormap
         if isinstance(rec, int):
             rec = self._all_records[rec]
-        if crop:
+        if data is not None:
+            pass
+        elif crop:
             data = self.load_data_cropped(rec, pad=crop_pad, output_shape=output_shape)
         else:
             data = self.load_data(rec, output_shape=output_shape)
