@@ -8,7 +8,11 @@ and
 https://github.com/VincentStimper/mclahe/blob/master/mclahe/utils.py
 """
 
+import logging
+import os
 from itertools import product
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 import numpy as np
 import tensorflow as tf
@@ -16,6 +20,14 @@ from tensorflow.python.framework import ops
 from tensorflow.python.ops import gen_math_ops
 
 tf.compat.v1.disable_eager_execution()
+
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+tf.get_logger().setLevel(logging.ERROR)
+tf.autograph.set_verbosity(1)
+
+# prevent tensorflow from allocating the entire GPU memory at once
+for gpu in tf.config.experimental.list_physical_devices("GPU"):
+    tf.config.experimental.set_memory_growth(gpu, True)
 
 
 __all__ = ["mclahe"]
