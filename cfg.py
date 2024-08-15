@@ -159,6 +159,7 @@ ModelCfg.nested_vnet = CFG(
         "dropout": [True, True, False, False],
     },
     output_conv={"kernel_size": 5},
+    deep_supervision=False,  # whether to use deep supervision
 )
 
 ModelCfg.stage = None  # 0 or 1, should be set before training

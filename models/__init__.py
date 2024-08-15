@@ -95,18 +95,26 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
 
         """
         seg_logits = self.segmentation_head(img.to(device=self.device))  # (B, C, H, W, D)
-        seg_mask = torch.softmax(seg_logits, dim=-1).argmax(dim=-1)  # (B, H, W, D)
+        if isinstance(seg_logits, torch.Tensor):
+            seg_mask = torch.softmax(seg_logits, dim=-1).argmax(dim=-1)  # (B, H, W, D)
+            seg_logits = [seg_logits]
+        else:
+            # list of tensors, via deep supervision
+            # TODO: final mask by voting or the last one?
+            seg_mask = torch.softmax(seg_logits[-1], dim=-1).argmax(dim=-1)  # (B, H, W, D)
         output = {"seg_logits": seg_logits, "seg_mask": seg_mask}
         if self.bbox_head is not None:
             raise NotImplementedError
         if labels is not None:
             output["total_loss"] = 0
-            if self.config.seg_loss == "BCEWithLogitsWithClassWeightLoss":
-                output["seg_loss"] = self.segmentation_loss(
-                    seg_logits, labels["mask"].to(self.device), labels["weight_mask"].to(self.device)
-                )
-            else:
-                output["seg_loss"] = self.segmentation_loss(seg_logits, labels["mask"].to(self.device))
+            output["seg_loss"] = 0
+            for logits_tensor in seg_logits:
+                if self.config.seg_loss == "MaskedBCEWithLogitsLoss":
+                    output["seg_loss"] += self.segmentation_loss(
+                        logits_tensor, labels["mask"].to(self.device), labels["weight_mask"].to(self.device)
+                    )
+                else:
+                    output["seg_loss"] += self.segmentation_loss(logits_tensor, labels["mask"].to(self.device))
             output["total_loss"] += output["seg_loss"]
             if self.bbox_head is not None and "bbox" in labels:
                 raise NotImplementedError
@@ -210,8 +218,6 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
             criterion = BCEWithLogitsWithClassWeightLoss(**loss_kw)
         elif loss == "BCELoss":
             criterion = nn.BCELoss(**loss_kw)
-        elif loss == "MaskedBCEWithLogitsLoss":
-            criterion = MaskedBCEWithLogitsLoss(**loss_kw)
         elif loss == "MaskedBCEWithLogitsLoss":
             criterion = MaskedBCEWithLogitsLoss(**loss_kw)
         elif loss == "FocalLoss":

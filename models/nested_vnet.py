@@ -134,6 +134,7 @@ class NestedVNet(nn.Module, SizeMixin):
             "dropout": [True, True, False, False],
         },
         output_conv={"kernel_size": 5},
+        deep_supervision=False,  # whether to use deep supervision
     )
 
     def __init__(self, num_classes: int, config: Optional[CFG] = None) -> None:
@@ -202,7 +203,11 @@ class NestedVNet(nn.Module, SizeMixin):
                     x=tensor_container[idx][i],
                     skipx=torch.cat([tensor_container[lv][lv - (idx - i - 1)] for lv in range(idx - i - 1, idx)], dim=1),
                 )
-            outputs.append(self.out_tr[idx - 1](tensor_container[idx][-1]))
+            if self.config.deep_supervision:
+                outputs.append(self.out_tr[idx - 1](tensor_container[idx][-1]))
+            else:
+                if idx == self.n_levels:
+                    outputs.append(self.out_tr[idx - 1](tensor_container[idx][-1]))
         return outputs
 
     @torch.no_grad()
