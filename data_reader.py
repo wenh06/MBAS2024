@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from typing import Any, List, Optional, Sequence, Union
 
@@ -85,8 +86,8 @@ class MBAS2024(_DataBase):
         self.data_ext = "nii.gz"
         self.ann_ext = "nii.gz"
 
-        self._data_file_pattern = "MBAS_\\d{3}_gt\\.nii\\.gz"
-        self._ann_file_pattern = "MBAS_\\d{3}_label\\.nii\\.gz"
+        self._data_file_pattern = "(?P<record>MBAS_\\d{3})_gt\\.nii\\.gz"
+        self._ann_file_pattern = "(?P<record>MBAS_\\d{3})_label\\.nii\\.gz"
         self._df_records_all = None
         self._ls_rec()
 
@@ -97,7 +98,10 @@ class MBAS2024(_DataBase):
             columns=["path"],
         )
         self._df_records["path"] = self._df_records["path"].apply(lambda x: Path(x))
-        self._df_records["record"] = self._df_records["path"].apply(lambda x: x.parents[0].name)
+        # self._df_records["record"] = self._df_records["path"].apply(lambda x: x.parents[0].name)
+        self._df_records["record"] = self._df_records["path"].apply(
+            lambda x: re.search(self._data_file_pattern, x.name).group("record")
+        )
         self._df_records["subset"] = self._df_records["path"].apply(lambda x: x.parents[1].name)
         self._df_records["ann_path"] = self._df_records["path"].apply(lambda x: Path(str(x).replace("gt", "label")))
         self._df_records["shape"] = self._df_records["path"].apply(lambda x: nib.load(str(x)).header.get_data_shape())

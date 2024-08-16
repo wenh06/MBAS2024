@@ -11,11 +11,13 @@ Inference pipeline for the prediction of the segmentation mask:
 """
 
 import argparse
+import warnings
 from pathlib import Path
 from typing import List, Sequence, Union
 
 import nibabel as nib
 import numpy as np
+import torch
 from tqdm.auto import tqdm
 
 from cfg import TrainCfg
@@ -50,11 +52,13 @@ def run_pipeline(
     assert stage0_model.config.get("apply_mclahe", False) == stage1_model.config.get(
         "apply_mclahe", False
     ), "apply_mclahe should be consistent"
+    assert stage0_model.config.stage == 0 and stage1_model.config.stage == 1, "stage should be consistent"
+
     if isinstance(img, np.ndarray) and img.ndim == 3:
         return _run_pipeline(img, stage0_model, stage1_model)
 
     pred_masks = []
-    for i in tqdm(len(img)):
+    for i in tqdm(range(len(img)), desc="Inference", unit="record", dynamic_ncols=True, mininterval=1.0):
         pred_masks.append(_run_pipeline(img[i], stage0_model, stage1_model))
     return pred_masks
 
@@ -85,7 +89,7 @@ def _run_pipeline(
     original_shape = img.shape
     img_raw = img.copy()
     if stage0_model.config.get("apply_mclahe", False):
-        img_raw = mclahe(img_raw)
+        img_raw = mclahe(img_raw, use_gpu=False)
 
     if original_shape[0] < TrainCfg.data_shape[0]:
         # pad by zeros
@@ -139,8 +143,8 @@ def _run_pipeline(
     else:
         shift_z = 0
 
-    print(f"image shape: {original_shape} -> {img_raw.shape}")
-    print(f"shift_x: {shift_x}, shift_y: {shift_y}, shift_z: {shift_z}")
+    # print(f"image shape: {original_shape} -> {img_raw.shape}")
+    # print(f"shift_x: {shift_x}, shift_y: {shift_y}, shift_z: {shift_z}")
 
     pred_mask = np.zeros_like(img_raw, dtype=np.uint8)
 
@@ -160,8 +164,8 @@ def _run_pipeline(
     y_min = max(0, y_center - TrainCfg.fine_shape[1] // 2)
     y_max = y_min + TrainCfg.fine_shape[1]
     img_fine = img_raw[x_min:x_max, y_min:y_max, :]
-    print(f"coarse region center: ({x_center}, {y_center})")
-    print(f"box (x_min, x_max, y_min, y_max): ({x_min}, {x_max}, {y_min}, {y_max})")
+    # print(f"coarse region center: ({x_center}, {y_center})")
+    # print(f"box (x_min, x_max, y_min, y_max): ({x_min}, {x_max}, {y_min}, {y_max})")
 
     # stage 1: fine segmentation
     pred_mask[x_min:x_max, y_min:y_max, :] = stage1_model.inference(img_fine).pred_mask[0]
@@ -199,7 +203,7 @@ def _run_pipeline(
             constant_values=0,
         )
 
-    print(f"predicted mask shape: {pred_mask.shape}")
+    # print(f"predicted mask shape: {pred_mask.shape}")
 
     return pred_mask
 
@@ -226,21 +230,40 @@ if __name__ == "__main__":
         help="Directory of the predicted masks.",
         dest="output_dir",
     )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="Device to use for inference.",
+        dest="device",
+    )
     args = parser.parse_args()
 
     dr = MBAS2024(args.db_dir)
 
+    if "cuda" in args.device and not torch.cuda.is_available():
+        args.device = "cpu"
+        warnings.warn("CUDA is not available. Using CPU for inference.")
+    device = torch.device(args.device)
+
     model_dir = Path(args.model_dir).expanduser().resolve()
-    stage0_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage0-model.pth.tar")[0]
-    stage1_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage1-model.pth.tar")[0]
+    stage0_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage0-model.pth.tar", device=device)[0]
+    stage1_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage1-model.pth.tar", device=device)[0]
 
     output_dir = Path(args.output_dir).expanduser().resolve()
     output_dir.mkdir(exist_ok=True, parents=True)
 
-    for rec in tqdm(dr.validation_set):
+    if len(dr.validation_set) == 0:
+        # perhaps a custom subset, e.g. the hidden test set
+        records = dr._df_records_all.index.tolist()
+        warnings.warn("No validation set found. Inference on the entire dataset.")
+    else:
+        records = dr.validation_set
+
+    for rec in tqdm(records, desc="Inference", unit="record", dynamic_ncols=True, mininterval=1.0):
         img = dr.load_data(rec)
         pred_mask = run_pipeline(img, stage0_model, stage1_model)
         nib.save(nib.Nifti1Image(pred_mask, affine=np.eye(4)), output_dir / f"{rec}_label.nii.gz")
 
     # example usage:
-    # python pipeline.py --db-dir /path/to/db --model-dir /path/to/models --output-dir /path/to/output
+    # python pipeline.py --db-dir /path/to/db --model-dir /path/to/models --output-dir /path/to/output --device cuda:0
