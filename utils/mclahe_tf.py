@@ -152,7 +152,7 @@ def tf_batch_histogram(values, value_range, axis, nbins=100, dtype=tf.int32, use
     return tf.reshape(hist, tf.concat([batch_dim, [nbins]], 0))
 
 
-def mclahe(x, kernel_size=None, n_bins=128, clip_limit=0.01, adaptive_hist_range=False, use_gpu=True):
+def mclahe(x, kernel_size=None, n_bins=128, clip_limit=0.01, adaptive_hist_range=False, use_gpu=False):
     """
     Contrast limited adaptive histogram equalization implemented in tensorflow
     :param x: numpy array to which clahe is applied
@@ -162,6 +162,10 @@ def mclahe(x, kernel_size=None, n_bins=128, clip_limit=0.01, adaptive_hist_range
     :param adaptive_hist_range: flag, if true individual range for histogram computation of each block is used
     :param use_gpu: Flag, if true gpu is used for computations if available
     :return: numpy array to which clahe was applied, scaled on interval [0, 1]
+
+    .. note::
+        `use_gpu` is set to False by default, since it is faster to use the CPU in many experiments.
+
     """
 
     if kernel_size is None:
