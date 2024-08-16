@@ -24,3 +24,7 @@ to be added....
 [Nividia: Visual Foundation Models for Medical Image Analysis](https://developer.nvidia.com/blog/visual-foundation-models-for-medical-image-analysis/)
 
 [MONAI Model Zoo](https://monai.io/model-zoo.html) | [MONAI at GitHub](https://github.com/Project-MONAI)
+
+## Validation phase leaderboard
+
+[Leaderboard](https://docs.google.com/spreadsheets/d/1YJvwBJjli6htgvomZxk--wPbyq8PtTWBbFIQBw-eroE/)
