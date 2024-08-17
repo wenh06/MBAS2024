@@ -1,6 +1,7 @@
-from typing import Dict, Sequence, Union, List, Optional
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+from medpy import metric as medpy_metric
 from scipy.spatial import cKDTree
 from sklearn.metrics import jaccard_score
 
@@ -18,6 +19,7 @@ def compute_challenge_metrics(
     ignore_index: Union[int, Sequence[int]] = 0,
     class_mapping: Optional[Dict[int, str]] = None,
     average: str = "samples",
+    use_official_metric: bool = True,
 ) -> Dict[str, Dict[str, Union[float, List[float]]]]:
     """Compute the challenge metrics.
 
@@ -45,6 +47,8 @@ def compute_challenge_metrics(
         - "samples": average the metrics for all samples under each class.
         - "classes": average the metrics for all classes for each sample.
         - "macro": compute each metric as the unweighted mean of the per-class metrics.
+    use_official_metric : bool, default True
+        Whether to use the official metric implementation.
 
     Returns
     -------
@@ -75,9 +79,9 @@ def compute_challenge_metrics(
 
     # initialize the metrics
     metrics_list = ["Dice", "HD95", "IoU"]
-    metrics = {cls_: {
-        m: [] for m in metrics_list
-    } for idx, cls_ in enumerate(BaseCfg.stage1_classes) if idx not in ignore_index}
+    metrics = {
+        cls_: {m: [] for m in metrics_list} for idx, cls_ in enumerate(BaseCfg.stage1_classes) if idx not in ignore_index
+    }
 
     for label, output in zip(labels, outputs):
         if isinstance(output, MBAS2024Outputs):
@@ -88,20 +92,29 @@ def compute_challenge_metrics(
             pred_mask = np.argmax(pred_mask, axis=-1)
         gt_mask = label.astype(pred_mask.dtype)
 
-        # compute the intersection over union (IoU) and Dice similarity coefficient (DSC)
-        iou = jaccard_score(gt_mask.flatten(), pred_mask.flatten(), average=None)
-        for idx, cls_ in class_mapping.items():
-            if idx in ignore_index:
-                continue
-            metrics[cls_]["IoU"].append(iou[idx])
-            metrics[cls_]["Dice"].append(2 * iou[idx] / (1 + iou[idx]))
+        if use_official_metric:
+            for idx, cls_ in class_mapping.items():
+                if idx in ignore_index:
+                    continue
+                dice, hd95 = official_calculate_metric_percase(pred_mask == idx, gt_mask == idx)
+                metrics[cls_]["Dice"].append(dice)
+                metrics[cls_]["HD95"].append(hd95)
+                metrics[cls_]["IoU"].append(dice / (2 - dice))
+        else:
+            # compute the intersection over union (IoU) and Dice similarity coefficient (DSC)
+            iou = jaccard_score(gt_mask.flatten(), pred_mask.flatten(), average=None)
+            for idx, cls_ in class_mapping.items():
+                if idx in ignore_index:
+                    continue
+                metrics[cls_]["IoU"].append(iou[idx])
+                metrics[cls_]["Dice"].append(2 * iou[idx] / (1 + iou[idx]))
 
-        # compute the 95% Hausdorff distance (HD95)
-        for idx, cls_ in enumerate(BaseCfg.stage1_classes):
-            if idx in ignore_index:
-                continue
-            distances = _hausdorff_distance(gt_mask==idx, pred_mask==idx, percentile=95)
-            metrics[cls_]["HD95"].append(distances)
+            # compute the 95% Hausdorff distance (HD95)
+            for idx, cls_ in enumerate(BaseCfg.stage1_classes):
+                if idx in ignore_index:
+                    continue
+                distances = _hausdorff_distance(gt_mask == idx, pred_mask == idx, percentile=95)
+                metrics[cls_]["HD95"].append(distances)
 
     if average == "samples":
         for cls_ in metrics:
@@ -113,7 +126,9 @@ def compute_challenge_metrics(
     return metrics
 
 
-def hausdorff_distance(mask1:np.ndarray, mask2:np.ndarray, percentile:float=95, labels:Optional[Sequence[int]]=None) -> Dict[int, float]:
+def hausdorff_distance(
+    mask1: np.ndarray, mask2: np.ndarray, percentile: float = 95, labels: Optional[Sequence[int]] = None
+) -> Dict[int, float]:
     """Compute the Hausdorff distance between two masks.
 
     Modified from
@@ -144,11 +159,11 @@ def hausdorff_distance(mask1:np.ndarray, mask2:np.ndarray, percentile:float=95, 
     distances = {}
     for label in labels:
         distances[label] = _hausdorff_distance(mask1 == label, mask2 == label, percentile)
-    
+
     return distances
 
 
-def _hausdorff_distance(mask1:np.ndarray, mask2:np.ndarray, percentile:float=95) -> float:
+def _hausdorff_distance(mask1: np.ndarray, mask2: np.ndarray, percentile: float = 95) -> float:
     """Compute the Hausdorff distance between two masks.
 
     Modified from
@@ -184,3 +199,28 @@ def _hausdorff_distance(mask1:np.ndarray, mask2:np.ndarray, percentile:float=95)
         cKDTree(b_points).query(a_points, k=1)[0],
     )
     return np.percentile(np.concatenate((fwd, bwd)), percentile)
+
+
+def official_calculate_metric_percase(pred: np.ndarray, gt: np.ndarray) -> Tuple[float, float]:
+    """Calculate the metric per case on binary masks.
+
+    Parameters
+    ----------
+    pred : np.ndarray
+        The predicted mask.
+    gt : np.ndarray
+        The ground truth mask.
+
+    Returns
+    -------
+    Tuple[float, float]
+        The Dice similarity coefficient and 95% Hausdorff distance.
+
+    """
+    if np.argmin(pred.shape) == 2:
+        pred = np.moveaxis(pred, -1, 0)
+        gt = np.moveaxis(gt, -1, 0)
+    dice = medpy_metric.binary.dc(pred, gt)
+    hd95 = medpy_metric.binary.hd95(pred, gt, voxelspacing=(2.5, 0.625, 0.625))
+    # print('dice, hd95', dice, hd95)
+    return dice, hd95
