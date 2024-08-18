@@ -1,9 +1,14 @@
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+import sys
+from pathlib import Path
+from typing import Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from medpy import metric as medpy_metric
 from scipy.spatial import cKDTree
 from sklearn.metrics import jaccard_score
+from tqdm.auto import tqdm
+
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from cfg import BaseCfg
 from outputs import MBAS2024Outputs
@@ -18,8 +23,9 @@ def compute_challenge_metrics(
     outputs: Sequence[Union[MBAS2024Outputs, np.ndarray]],
     ignore_index: Union[int, Sequence[int]] = 0,
     class_mapping: Optional[Dict[int, str]] = None,
-    average: str = "samples",
+    average: Literal["samples", "classes", "macro", None] = "samples",
     use_official_metric: bool = True,
+    progress: bool = True,
 ) -> Dict[str, Dict[str, Union[float, List[float]]]]:
     """Compute the challenge metrics.
 
@@ -49,6 +55,8 @@ def compute_challenge_metrics(
         - "macro": compute each metric as the unweighted mean of the per-class metrics.
     use_official_metric : bool, default True
         Whether to use the official metric implementation.
+    progress : bool, default False
+        Whether to show the progress bar.
 
     Returns
     -------
@@ -83,7 +91,15 @@ def compute_challenge_metrics(
         cls_: {m: [] for m in metrics_list} for idx, cls_ in enumerate(BaseCfg.stage1_classes) if idx not in ignore_index
     }
 
-    for label, output in zip(labels, outputs):
+    for label, output in tqdm(
+        zip(labels, outputs),
+        total=len(labels),
+        desc="Computing challenge metrics",
+        unit="sample",
+        dynamic_ncols=True,
+        mininterval=1,
+        disable=not progress,
+    ):
         if isinstance(output, MBAS2024Outputs):
             pred_mask = output.pred_mask
         else:
@@ -122,6 +138,10 @@ def compute_challenge_metrics(
                 metrics[cls_][m] = np.mean(metrics[cls_][m])
     elif average == "classes":
         raise NotImplementedError
+    elif average == "macro":
+        raise NotImplementedError
+    else:
+        pass
 
     return metrics
 
@@ -224,3 +244,99 @@ def official_calculate_metric_percase(pred: np.ndarray, gt: np.ndarray) -> Tuple
     hd95 = medpy_metric.binary.hd95(pred, gt, voxelspacing=(2.5, 0.625, 0.625))
     # print('dice, hd95', dice, hd95)
     return dice, hd95
+
+
+if __name__ == "__main__":
+    import argparse
+    import multiprocessing as mp
+
+    import nibabel as nib
+
+    parser = argparse.ArgumentParser(description="Compute the challenge metrics.")
+    parser.add_argument("--labels", type=str, help="The path to the labels.")
+    parser.add_argument("--outputs", type=str, help="The path to the outputs.")
+    parser.add_argument(
+        "--ignore-index", nargs="+", type=int, default=[0], help="The index of the class to ignore.", dest="ignore_index"
+    )
+    parser.add_argument(
+        "--average",
+        type=str,
+        default="samples",
+        choices=["samples", "classes", "macro", None],
+        help="The averaging strategy for the metrics.",
+    )
+    parser.add_argument("--use-custom-metric", action="store_true", help="Whether to use the custom metric implementation.")
+    parser.add_argument("--parallel", action="store_true", help="Whether to use parallel computation.")
+
+    args = parser.parse_args()
+
+    args.use_official_metric = not args.use_custom_metric
+
+    label_files = sorted(Path(args.labels).expanduser().resolve().rglob("*_label.nii.gz"))
+    output_files = sorted(Path(args.outputs).expanduser().resolve().rglob("*_label.nii.gz"))
+    assert set([f.name for f in label_files]) == set(
+        [f.name for f in output_files]
+    ), "Label and output files must correspond to each other."
+
+    if args.parallel:
+        raise NotImplementedError(
+            "Migth have some issues from scipy.ndimage: RuntimeError: sequence argument must have length equal to input rank"
+        )
+        args_list = [
+            (
+                nib.load(str(lf)).get_fdata(),
+                nib.load(str(of)).get_fdata(),
+                args.ignore_index,
+                None,
+                None,
+                args.use_official_metric,
+                False,
+            )
+            for lf, of in zip(label_files, output_files)
+        ]
+        with mp.Pool(processes=max(1, mp.cpu_count() - 3)) as pool:
+            metrics = pool.starmap(
+                compute_challenge_metrics,
+                tqdm(
+                    args_list,
+                    total=len(args_list),
+                    desc="Computing challenge metrics",
+                    unit="sample",
+                    dynamic_ncols=True,
+                    mininterval=1,
+                ),
+            )
+    else:
+        metrics = []
+        for lf, of in tqdm(
+            zip(label_files, output_files),
+            total=len(label_files),
+            desc="Computing challenge metrics",
+            unit="sample",
+            dynamic_ncols=True,
+            mininterval=1,
+        ):
+            labels = [nib.load(str(lf)).get_fdata()]
+            outputs = [nib.load(str(of)).get_fdata()]
+
+            metrics.append(
+                compute_challenge_metrics(
+                    labels,
+                    outputs,
+                    ignore_index=args.ignore_index,
+                    average=None,
+                    use_official_metric=args.use_official_metric,
+                    progress=False,
+                )
+            )
+
+    if args.average == "samples":
+        metrics = {cls_: {m: np.mean([metric[cls_][m] for metric in metrics]) for m in metrics[0][cls_]} for cls_ in metrics[0]}
+    elif args.average == "classes":
+        raise NotImplementedError
+    elif args.average == "macro":
+        raise NotImplementedError
+    else:
+        pass
+
+    print(metrics)
