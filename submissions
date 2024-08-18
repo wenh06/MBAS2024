@@ -1,24 +1,17 @@
 val_phase:
   try_1:
-    avg_rank: 18
     wall:
       dice:
         val: 46.2
-        rank: 19
       hd95:
         val: 7.07
-        rank: 17
     right_atrium:
       dice:
         val: 82.82
-        rank: 16
       hd95:
         val: 16.14
-        rank: 17
     left_atrium:
       dice:
         val: 84.96
-        rank: 18
       hd95:
         val: 10.29
-        rank: 16
