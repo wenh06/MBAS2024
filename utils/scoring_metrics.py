@@ -23,7 +23,7 @@ def compute_challenge_metrics(
     outputs: Sequence[Union[MBAS2024Outputs, np.ndarray]],
     ignore_index: Union[int, Sequence[int]] = 0,
     class_mapping: Optional[Dict[int, str]] = None,
-    average: Literal["samples", "classes", "macro", None] = "samples",
+    average: Literal["samples", "samples-flatten", "classes", "macro", None] = "samples",
     use_official_metric: bool = True,
     progress: bool = True,
 ) -> Dict[str, Dict[str, Union[float, List[float]]]]:
@@ -47,12 +47,18 @@ def compute_challenge_metrics(
         The outputs for the records.
     ignore_index : Union[int, Sequence[int]], default 0
         The index of the class to ignore, by default the background class.
-    average : str, default "samples"
+    mode : {"samples", "samples-flatten", "classes", "macro", None}, default "samples"
         The averaging strategy for the metrics.
-        - None: do not average the metrics.
-        - "samples": average the metrics for all samples under each class.
-        - "classes": average the metrics for all classes for each sample.
-        - "macro": compute each metric as the unweighted mean of the per-class metrics.
+        If is "samples", the result is averaged over all samples under each class,
+        of the format: {class: {metric: value, ...}, ...}.
+        If is "samples-flatten", the result is averaged over all samples under each class,
+        of the format: {class-metric: value, ...}.
+        If is "classes", the result is averaged over all classes for each sample,
+        of the format: {metric: [value1, value2, ...], ...}.
+        If is "macro", the result is averaged over all classes and samples,
+        of the format: {metric: value, ...}.
+        If is None, the result is not averaged,
+        of the format: {class: {metric: [value1, value2, ...], ...}, ...}.
     use_official_metric : bool, default True
         Whether to use the official metric implementation.
     progress : bool, default False
@@ -132,16 +138,7 @@ def compute_challenge_metrics(
                 distances = _hausdorff_distance(gt_mask == idx, pred_mask == idx, percentile=95)
                 metrics[cls_]["HD95"].append(distances)
 
-    if average == "samples":
-        for cls_ in metrics:
-            for m in metrics_list:
-                metrics[cls_][m] = np.mean(metrics[cls_][m])
-    elif average == "classes":
-        raise NotImplementedError
-    elif average == "macro":
-        raise NotImplementedError
-    else:
-        pass
+    metrics = avg_metrics(metrics, mode=average)
 
     return metrics
 
@@ -246,6 +243,70 @@ def official_calculate_metric_percase(pred: np.ndarray, gt: np.ndarray) -> Tuple
     return dice, hd95
 
 
+def avg_metrics(
+    metrics: Union[Dict[str, Dict[str, List[float]]], List[Dict[str, Dict[str, List[float]]]]],
+    mode: Literal["samples", "samples-flatten", "classes", "macro", None] = "samples",
+) -> Dict[str, Dict[str, float]]:
+    """Average the metrics.
+
+    Parameters
+    ----------
+    metrics : List[Dict[str, Dict[str, float]]]
+        The metrics to average. The format is:
+        {
+            cls_: {
+                metric: [value1, value2, ...],
+                ...
+            },
+            ...
+        }
+    mode : {"samples", "samples-flatten", "classes", "macro", None}, default "samples"
+        The averaging strategy for the metrics.
+        If is "samples", the result is averaged over all samples under each class,
+        of the format: {class: {metric: value, ...}, ...}.
+        If is "samples-flatten", the result is averaged over all samples under each class,
+        of the format: {class-metric: value, ...}.
+        If is "classes", the result is averaged over all classes for each sample,
+        of the format: {metric: [value1, value2, ...], ...}.
+        If is "macro", the result is averaged over all classes and samples,
+        of the format: {metric: value, ...}.
+        If is None, the result is not averaged,
+        of the format: {class: {metric: [value1, value2, ...], ...}, ...}.
+
+    Returns
+    -------
+    Dict[str, Dict[str, float]]
+        The averaged metrics.
+
+    """
+    if not isinstance(metrics, dict):
+        # concatenate the metrics
+        metrics = {
+            cls_: {m: np.concatenate([metric[cls_][m] for metric in metrics]) for m in metrics[0][cls_]} for cls_ in metrics[0]
+        }
+
+    # metrics of the format: {cls_: {metric: [value1, value2, ...], ...}, ...}
+    if mode == "samples":
+        # to the format: {cls_: {metric: value, ...}, ...}
+        metrics = {cls_: {m: np.mean(metrics[cls_][m]).item() for m in metrics[cls_]} for cls_ in metrics}
+    elif mode == "samples-flatten":
+        # to the format: {cls-metric: value, ...}
+        metrics = {f"{cls_}-{m}": np.mean(metrics[cls_][m]).item() for cls_ in metrics for m in metrics[cls_]}
+    elif mode == "classes":
+        # to the format {metric: [value1, value2, ...], ...}
+        metrics = {
+            m: np.mean([metrics[cls_][m] for cls_ in metrics], axis=0).tolist() for m in metrics[list(metrics.keys())[0]]
+        }
+    elif mode == "macro":
+        # to the format {metric: value, ...}
+        metrics = avg_metrics(metrics, mode="classes")
+        metrics = {m: np.mean(metrics[m]).item() for m in metrics}
+    else:
+        pass
+
+    return metrics
+
+
 if __name__ == "__main__":
     import argparse
     import multiprocessing as mp
@@ -262,7 +323,7 @@ if __name__ == "__main__":
         "--average",
         type=str,
         default="samples",
-        choices=["samples", "classes", "macro", None],
+        choices=["samples", "samples-flatten", "classes", "macro", "none"],
         help="The averaging strategy for the metrics.",
     )
     parser.add_argument("--use-custom-metric", action="store_true", help="Whether to use the custom metric implementation.")
@@ -271,9 +332,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.use_official_metric = not args.use_custom_metric
+    args.average = args.average.lower()
+    if args.average == "none":
+        args.average = None
 
-    label_files = sorted(Path(args.labels).expanduser().resolve().rglob("*_label.nii.gz"))
-    output_files = sorted(Path(args.outputs).expanduser().resolve().rglob("*_label.nii.gz"))
+    label_files = sorted(Path(args.labels).expanduser().resolve().rglob("*_label.nii.gz"))[:2]
+    output_files = sorted(Path(args.outputs).expanduser().resolve().rglob("*_label.nii.gz"))[:2]
     assert set([f.name for f in label_files]) == set(
         [f.name for f in output_files]
     ), "Label and output files must correspond to each other."
@@ -330,13 +394,6 @@ if __name__ == "__main__":
                 )
             )
 
-    if args.average == "samples":
-        metrics = {cls_: {m: np.mean([metric[cls_][m] for metric in metrics]) for m in metrics[0][cls_]} for cls_ in metrics[0]}
-    elif args.average == "classes":
-        raise NotImplementedError
-    elif args.average == "macro":
-        raise NotImplementedError
-    else:
-        pass
+    metrics = avg_metrics(metrics, mode=args.average)
 
     print(metrics)
