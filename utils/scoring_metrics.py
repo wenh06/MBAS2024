@@ -336,8 +336,8 @@ if __name__ == "__main__":
     if args.average == "none":
         args.average = None
 
-    label_files = sorted(Path(args.labels).expanduser().resolve().rglob("*_label.nii.gz"))[:2]
-    output_files = sorted(Path(args.outputs).expanduser().resolve().rglob("*_label.nii.gz"))[:2]
+    label_files = sorted(Path(args.labels).expanduser().resolve().rglob("*_label.nii.gz"))
+    output_files = sorted(Path(args.outputs).expanduser().resolve().rglob("*_label.nii.gz"))
     assert set([f.name for f in label_files]) == set(
         [f.name for f in output_files]
     ), "Label and output files must correspond to each other."
