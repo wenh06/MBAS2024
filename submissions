@@ -1,5 +1,7 @@
 val_phase:
   try_1:
+    arch: unet
+    mchahe: false
     wall:
       dice:
         val: 46.2
@@ -15,3 +17,39 @@ val_phase:
         val: 84.96
       hd95:
         val: 10.29
+  try_2:
+    arch: unet
+    mchahe: true
+    wall:
+      dice:
+        val: 55.91
+      hd95:
+        val: 5.10
+    right_atrium:
+      dice:
+        val: 86.12
+      hd95:
+        val: 6.77
+    left_atrium:
+      dice:
+        val: 88.15
+      hd95:
+        val: 5.81
+  try_3:
+    arch: nested-unet
+    mchahe: true
+    wall:
+      dice:
+        val: 55.11
+      hd95:
+        val: 6.16
+    right_atrium:
+      dice:
+        val: 81.40
+      hd95:
+        val: 7.98
+    left_atrium:
+      dice:
+        val: 87.43
+      hd95:
+        val: 6.78
