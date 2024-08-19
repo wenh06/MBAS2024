@@ -348,13 +348,13 @@ if __name__ == "__main__":
         )
         args_list = [
             (
-                nib.load(str(lf)).get_fdata(),
-                nib.load(str(of)).get_fdata(),
-                args.ignore_index,
-                None,
-                None,
-                args.use_official_metric,
-                False,
+                nib.load(str(lf)).get_fdata(),  # labels
+                nib.load(str(of)).get_fdata(),  # outputs
+                args.ignore_index,  # ignore_index
+                None,  # class_mapping
+                None,  # average
+                args.use_official_metric,  # use_official_metric
+                False,  # progress
             )
             for lf, of in zip(label_files, output_files)
         ]

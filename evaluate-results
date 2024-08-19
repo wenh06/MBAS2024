@@ -1,39 +1,80 @@
-nested-unet-mclahe:
-  left & right atrial walls:
-    Dice: 0.773632411386006
-    HD95: 1.7179025877631002
-    IoU: 0.6335282757052824
-  left atrium:
-    Dice: 0.9583341493151297
-    HD95: 2.1287860637590144
-    IoU: 0.9207416437139139
-  right atrium:
-    Dice: 0.9551589512618471
-    HD95: 1.9907001111130296
-    IoU: 0.9144977036555728
-unet:
-  left & right atrial walls:
-    Dice: 0.5904958875061181
-    HD95: 3.461979132586123
-    IoU: 0.420924077369835
-  left atrium:
-    Dice: 0.9208044359918244
-    HD95: 8.315483445269566
-    IoU: 0.8539646965628728
-  right atrium:
-    Dice: 0.926720925661809
-    HD95: 17.30841084652678
-    IoU: 0.8641857980562061
-unet-mclahe:
-  left & right atrial walls:
-    Dice: 0.712053916828543
-    HD95: 2.2584284038989373
-    IoU: 0.5539597436939948
-  left atrium:
-    Dice: 0.9504559920518604
-    HD95: 2.314175130050819
-    IoU: 0.9059925426347178
-  right atrium:
-    Dice: 0.9457998310740525
-    HD95: 2.281900439488898
-    IoU: 0.897491291460216
+before-fix:  # missing a z-score normalization in the inference pipeline
+  nested-vnet-mclahe:
+    left & right atrial walls:
+      Dice: 0.773632411386006
+      HD95: 1.7179025877631002
+      IoU: 0.6335282757052824
+    left atrium:
+      Dice: 0.9583341493151297
+      HD95: 2.1287860637590144
+      IoU: 0.9207416437139139
+    right atrium:
+      Dice: 0.9551589512618471
+      HD95: 1.9907001111130296
+      IoU: 0.9144977036555728
+  vnet-mclahe:
+    left & right atrial walls:
+      Dice: 0.712053916828543
+      HD95: 2.2584284038989373
+      IoU: 0.5539597436939948
+    left atrium:
+      Dice: 0.9504559920518604
+      HD95: 2.314175130050819
+      IoU: 0.9059925426347178
+    right atrium:
+      Dice: 0.9457998310740525
+      HD95: 2.281900439488898
+      IoU: 0.897491291460216
+  vnet:
+    left & right atrial walls:
+      Dice: 0.5904958875061181
+      HD95: 3.461979132586123
+      IoU: 0.420924077369835
+    left atrium:
+      Dice: 0.9208044359918244
+      HD95: 8.315483445269566
+      IoU: 0.8539646965628728
+    right atrium:
+      Dice: 0.926720925661809
+      HD95: 17.30841084652678
+      IoU: 0.8641857980562061
+after-fix:
+  nested-vnet-mclahe:
+    left & right atrial walls:
+      Dice: 0.7749760620746335
+      HD95: 1.8519270308255609
+      IoU: 0.6389245433417601
+    left atrium:
+      Dice: 0.9556841728618297
+      HD95: 2.194260062202219
+      IoU: 0.9173969382283992
+    right atrium:
+      Dice: 0.9498080052199364
+      HD95: 2.161155761759368
+      IoU: 0.9074240846656367
+  vnet-mclahe:
+    left & right atrial walls:
+      Dice: 0.7219133407487084
+      HD95: 2.1152115856417684
+      IoU: 0.5656942023322052
+    left atrium:
+      Dice: 0.9528438060556568
+      HD95: 2.200890754912746
+      IoU: 0.9102330042430463
+    right atrium:
+      Dice: 0.9505284747322762
+      HD95: 2.1026881331457545
+      IoU: 0.9059763404318928
+  vnet:
+    left & right atrial walls:
+      Dice: 0.5755972526646265
+      HD95: 3.7061604994409842
+      IoU: 0.4072552422467217
+    left atrium:
+      Dice: 0.9193295678640638
+      HD95: 8.362791487294983
+      IoU: 0.8517725054685048
+    right atrium:
+      Dice: 0.9225587807143563
+      HD95: 17.653493100276595
+      IoU: 0.8576672161074016

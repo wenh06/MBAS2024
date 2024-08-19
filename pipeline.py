@@ -114,6 +114,9 @@ def _run_pipeline_parallel(
     if stage0_model.config.get("apply_mclahe", False):
         img_raw = [mclahe(x, use_gpu=False) for x in img]
 
+    # normalize the input images (this seems to degrade the performance on the training set)
+    # img_raw = [(x - x.mean()) / (x.std() + 1e-8) for x in img_raw]
+
     img_raw, shifts = zip(*[reshape_input_image(x) for x in img_raw])
 
     pred_masks = [np.zeros_like(x, dtype=np.uint8) for x in img_raw]
@@ -177,6 +180,9 @@ def _run_pipeline(
     img_raw = img
     if stage0_model.config.get("apply_mclahe", False):
         img_raw = mclahe(img_raw, use_gpu=False)
+
+    # normalize the input images (this seems to degrade the performance on the training set)
+    # img_raw = (img_raw - img_raw.mean()) / (img_raw.std() + 1e-8)
 
     img_raw, (shift_x, shift_y, shift_z) = reshape_input_image(img_raw)
 

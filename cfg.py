@@ -105,6 +105,8 @@ TrainCfg.fine_shape = (256, 256, 48)
 
 TrainCfg.apply_mclahe = False
 
+TrainCfg.use_tio_transforms = None  # True or False, should be set before training
+
 TrainCfg.stage = None  # 0 or 1, should be set before training
 
 
@@ -117,6 +119,7 @@ TrainCfg.stage = None  # 0 or 1, should be set before training
 ModelCfg = CFG()
 
 ModelCfg.apply_mclahe = TrainCfg.apply_mclahe
+ModelCfg.use_tio_transforms = TrainCfg.use_tio_transforms
 
 # the model to be used
 ModelCfg.seg_model_name = "vnet"  # "vnet", "nestedvnet"

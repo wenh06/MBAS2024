@@ -188,7 +188,7 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
             img = img.unsqueeze(0)
         # img of shape (B, C, H, W, D)
         # sample-wise normalization
-        img = (img - img.mean(dim=(1, 2, 3, 4), keepdim=True)) / (img.std(dim=(1, 2, 3, 4), keepdim=True) + 1e-6)
+        img = (img - img.mean(dim=(1, 2, 3, 4), keepdim=True)) / (img.std(dim=(1, 2, 3, 4), keepdim=True) + 1e-8)
         return img
 
     def _setup_criterion(self, loss: str, loss_kw: Optional[Dict[str, Any]] = None) -> nn.Module:

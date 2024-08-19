@@ -77,6 +77,9 @@ class MBAS2024Trainer(BaseTrainer):
         assert (
             model_config.apply_mclahe == train_config.apply_mclahe
         ), "apply_mclahe should be consistent in the model and the training configuration"
+        assert (
+            model_config.use_tio_transforms == train_config.use_tio_transforms
+        ), "use_tio_transforms should be consistent in the model and the training configuration"
         super().__init__(
             model=model,
             dataset_cls=MBAS2024Dataset,
@@ -259,10 +262,14 @@ class MBAS2024Trainer(BaseTrainer):
                 all_outputs.append(self._model.inference(image))  # of type MBAS2024Outputs
                 pbar.update(len(image))
 
-        # if self.val_train_loader is not None:
-        #     pass  # TODO: implement the evaluation on the training set
-
-        eval_res = compute_challenge_metrics(labels=all_labels, outputs=all_outputs)
+        eval_res = compute_challenge_metrics(
+            labels=all_labels,
+            outputs=all_outputs,
+            ignore_index=[0],  # ignore background
+            average="samples-flatten",  # to format "class-metric": value
+            use_official_metric=True,
+            progress=True,
+        )
 
         # in case possible memeory leakage?
         del all_labels

@@ -8,6 +8,7 @@ from typing import Dict, Optional, Sequence, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
+import torchio as tio
 from torch.utils.data.dataset import Dataset
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import ReprMixin
@@ -38,12 +39,13 @@ class MBAS2024Dataset(Dataset, ReprMixin):
 
     """
 
-    def __init__(self, stage: int, config: Optional[CFG] = None, **reader_kwargs) -> None:
+    def __init__(self, stage: int, config: Optional[CFG] = None, training: bool = True, **reader_kwargs) -> None:
         super().__init__()
         self.config = CFG(deepcopy(TrainCfg))
         if config is not None:
             self.config.update(deepcopy(config))
         self.stage = stage
+        self.training = training
 
         if self.config.get("db_dir", None) is None:
             self.config.db_dir = reader_kwargs.pop("db_dir", None)
@@ -52,6 +54,33 @@ class MBAS2024Dataset(Dataset, ReprMixin):
             reader_kwargs.pop("db_dir", None)
         self.config.db_dir = Path(self.config.db_dir).expanduser().resolve()
         self.reader = MBAS2024(db_dir=self.config.db_dir, **reader_kwargs)
+
+        if self.config.use_tio_transforms and self.training:
+            aug_prob = self.config.get("aug_prob", 0.5)
+            augmentation = tio.Compose(
+                [
+                    tio.RandomAffine(scales=(0.9, 1.1), degrees=10, image_interpolation="linear", p=aug_prob),
+                    tio.RandomElasticDeformation(max_displacement=(10, 10, 10), p=aug_prob),
+                    tio.RandomNoise(std=(0, 0.1), p=aug_prob),
+                    tio.RandomBiasField(coefficients=(0, 0.1), p=aug_prob),
+                    tio.RandomBlur(std=(0, 0.5), p=aug_prob),
+                    tio.RandomGamma(log_gamma=(-0.3, 0.3), p=aug_prob),
+                    tio.RandomMotion(degrees=10, p=aug_prob),
+                    tio.RandomSpike(num_spikes=(0, 10), p=aug_prob),
+                    tio.RandomGhosting(num_ghosts=(0, 10), p=aug_prob),
+                ],
+                p=0.8,
+            )
+            self.transform = tio.Compose(
+                [
+                    augmentation,
+                    tio.ZNormalization(),
+                ],
+                p=1,
+            )
+            raise NotImplementedError("torchio transforms are not supported yet")
+        else:
+            self.transform = None
 
         self.__cache = {}  # "coarse_data", "coarse_mask", "fine_data", "fine_mask"
         self.__load_all_data()
@@ -95,8 +124,12 @@ class MBAS2024Dataset(Dataset, ReprMixin):
                 if self.config.apply_mclahe:
                     data = mclahe(data)
 
-                # normalize the data
-                data = (data - np.mean(data)) / (np.std(data) + 1e-8)  # avoid division by zero
+                if self.transform is not None:
+                    # data, mask = self.transform(data, mask)
+                    raise NotImplementedError("torchio transforms are not supported yet")
+                else:
+                    # normalize the data
+                    data = (data - np.mean(data)) / (np.std(data) + 1e-8)  # avoid division by zero
 
                 # adjust the shape of the data
                 x_size, y_size, z_size = data.shape
