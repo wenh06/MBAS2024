@@ -4,7 +4,6 @@ MBAS2024 model.
 It is a multi-head model for MBAS2024 challenge.
 """
 
-import os
 from copy import deepcopy
 from typing import Any, Dict, Optional
 
@@ -12,13 +11,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch_ecg.cfg import CFG, DEFAULTS  # noqa: F401
-from torch_ecg.models.loss import AsymmetricLoss, BCEWithLogitsWithClassWeightLoss, FocalLoss, MaskedBCEWithLogitsLoss
-from torch_ecg.utils.download import url_is_reachable
-from torch_ecg.utils.misc import CitationMixin, add_docstring  # noqa: F401
+from torch_ecg.models.loss import setup_criterion
+from torch_ecg.utils.misc import CitationMixin
 from torch_ecg.utils.utils_nn import CkptMixin, SizeMixin
 
 from cfg import ModelCfg
-from const import INPUT_IMAGE_TYPES, MODEL_CACHE_DIR
+from const import INPUT_IMAGE_TYPES
 from outputs import MBAS2024Outputs
 from utils.mclahe_tf import mclahe  # noqa: F401
 
@@ -28,12 +26,6 @@ from .vnet import VNet
 __all__ = [
     "MultiHead_MBAS2024",
 ]
-
-
-if os.environ.get("HF_ENDPOINT", None) is not None and (not url_is_reachable("https://huggingface.co")):
-    # workaround for using huggingface hub in China
-    os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
-os.environ["HF_HOME"] = str(MODEL_CACHE_DIR)
 
 
 class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
@@ -209,29 +201,6 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
         """
         if loss_kw is None:
             loss_kw = {}
-        for k, v in loss_kw.items():
-            if isinstance(v, torch.Tensor):
-                loss_kw[k] = v.to(device=self.device, dtype=self.dtype)
-        if loss == "BCEWithLogitsLoss":
-            criterion = nn.BCEWithLogitsLoss(**loss_kw)
-        elif loss == "BCEWithLogitsWithClassWeightLoss":
-            criterion = BCEWithLogitsWithClassWeightLoss(**loss_kw)
-        elif loss == "BCELoss":
-            criterion = nn.BCELoss(**loss_kw)
-        elif loss == "MaskedBCEWithLogitsLoss":
-            criterion = MaskedBCEWithLogitsLoss(**loss_kw)
-        elif loss == "FocalLoss":
-            criterion = FocalLoss(**loss_kw)
-        elif loss == "AsymmetricLoss":
-            criterion = AsymmetricLoss(**loss_kw)
-        elif loss == "CrossEntropyLoss":
-            criterion = nn.CrossEntropyLoss(**loss_kw)
-        else:
-            raise NotImplementedError(
-                f"loss `{loss}` not implemented! "
-                "Please use one of the following: `BCEWithLogitsLoss`, `BCEWithLogitsWithClassWeightLoss`, "
-                "`BCELoss`, `MaskedBCEWithLogitsLoss`, `MaskedBCEWithLogitsLoss`, `FocalLoss`, "
-                "`AsymmetricLoss`, `CrossEntropyLoss`, or override this method to setup your own criterion."
-            )
+        criterion = setup_criterion(loss, **loss_kw)
         criterion = criterion.to(device=self.device, dtype=self.dtype)
         return criterion
