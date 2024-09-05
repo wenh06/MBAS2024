@@ -9,6 +9,7 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch_ecg.databases.base import DataBaseInfo, _DataBase
+from torch_ecg.utils.download import http_get
 from torch_ecg.utils.misc import add_docstring, get_record_list_recursive3
 
 __all__ = ["MBAS2024"]
@@ -418,8 +419,16 @@ class MBAS2024(_DataBase):
         return _MBAS2024_INFO
 
     @property
-    def url(self) -> str:
+    def webpage(self) -> str:
         return "https://codalab.lisn.upsaclay.fr/competitions/18516"
+
+    @property
+    def url(self) -> str:
+        return "https://drive.google.com/u/0/uc?id=1wCcU4DCwmSJHrv0h_6e7sRgK0D_PezAs"
+
+    def download(self) -> None:
+        """Download the database."""
+        http_get(self.url, self.db_dir, filename="MBAS2024.zip", extract=True)
 
     @property
     def validation_set(self) -> List[str]:
