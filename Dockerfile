@@ -18,10 +18,16 @@ ENV HF_HUB_CACHE=/challenge/cache/revenger_model_dir
 ENV MODEL_CACHE_DIR=/challenge/cache/revenger_model_dir
 ENV GIT_CLONE_DIR=/challenge/cache/git_clone_dir
 
+ENV INPUT_DIR = /input
+ENV OUTPUT_DIR = /output
+
 ENV NO_ALBUMENTATIONS_UPDATE=1
 ENV ALBUMENTATIONS_DISABLE_VERSION_CHECK=1
 
 ENV TF_CPP_MIN_LOG_LEVEL=2
+
+
+RUN mkdir -p $INPUT_DIR $OUTPUT_DIR
 
 
 # check distribution of the base image
@@ -54,7 +60,6 @@ WORKDIR /challenge
 
 
 RUN mkdir -p $MODEL_CACHE_DIR
-RUN mkdir -p $DATA_CACHE_DIR
 RUN mkdir -p $GIT_CLONE_DIR
 
 
@@ -67,7 +72,7 @@ RUN pip list
 # torch and related packages (torchvision, torchaudio, etc.) are already installed in the base image
 
 
-RUN python -m pip install --upgrade pip setuptools wheel
+RUN python -m pip install --upgrade pip setuptools wheel build
 
 # RUN pip install torch-ecg
 # install the dev branch of torch-ecg
@@ -85,7 +90,14 @@ RUN pip list
 # copy the whole project to the docker container
 COPY ./ /challenge
 
+# Download pretrained models
+RUN python post_docker_build.py
 # check if the data and model are downloaded
 # TODO: pass the path as environment variables
-RUN du -sh $DATA_CACHE_DIR
+RUN du -sh $INPUT_DIR
 RUN du -sh $MODEL_CACHE_DIR
+
+
+## Execute the inference command
+CMD ["predict.py"]
+ENTRYPOINT ["python3"]
