@@ -93,6 +93,6 @@ jobs:
           -e mount_output_dir=${{ env.mount_output_dir }} \
           -v ${{ env.download_data_dir }}:${{ env.mount_data_dir }} \
           -v ${{ env.output_dir }}:${{ env.mount_output_dir }} \
-          --rm ${{ env.image_tag }}
+          --rm ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.image_tag }} \
         docker ps -a
         ls -l ${{ env.output_dir }}
