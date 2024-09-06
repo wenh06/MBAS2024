@@ -18,7 +18,9 @@ env:
   revenger_model_dir: /challenge/cache/revenger_model_dir
   docker_main_filename: Dockerfile
   data_gdrive_id: 1wCcU4DCwmSJHrv0h_6e7sRgK0D_PezAs
-  image_tag: deeppsp-mbas2024-docker-image:latest
+  DOCKER_HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKER_HUB_REPOSITORY: deeppsp-mbas2024-docker-image
+  image_tag: latest
 
 jobs:
 
@@ -51,15 +53,14 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-    - name: Build the Docker image
-      run: |
-        docker build . --file ${{ env.docker_main_filename }} --tag ${{ env.image_tag }}
-        docker image ls
-    - name: Push the Docker image to Docker Hub
-      if: ${{ env.status != 'pre' }}
-      run: |
-        docker push ${{ env.image_tag }}
-        docker logout
+    - name: Build and push the Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: ${{ env.docker_main_filename }}
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: |
+          ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.image_tag }}
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v5
