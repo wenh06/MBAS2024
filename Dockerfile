@@ -18,8 +18,8 @@ ENV HF_HUB_CACHE=/challenge/cache/revenger_model_dir
 ENV MODEL_CACHE_DIR=/challenge/cache/revenger_model_dir
 ENV GIT_CLONE_DIR=/challenge/cache/git_clone_dir
 
-ENV INPUT_DIR = /input
-ENV OUTPUT_DIR = /output
+ENV INPUT_DIR=/input
+ENV OUTPUT_DIR=/output
 
 ENV NO_ALBUMENTATIONS_UPDATE=1
 ENV ALBUMENTATIONS_DISABLE_VERSION_CHECK=1
