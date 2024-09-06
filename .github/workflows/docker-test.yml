@@ -51,13 +51,15 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-    - name: Build and push the Docker image
-      uses: docker/build-push-action@v6
-      with:
-        push: true
-        tags: ${{ env.image_tag }}
-        context: .
-        file: ${{ env.docker_main_filename }}
+    - name: Build the Docker image
+      run: |
+        docker build . --file ${{ env.docker_main_filename }} --tag ${{ env.image_tag }}
+        docker image ls
+    - name: Push the Docker image to Docker Hub
+      if: ${{ env.status != 'pre' }}
+      run: |
+        docker push ${{ env.image_tag }}
+        docker logout
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v5
