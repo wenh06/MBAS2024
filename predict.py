@@ -74,7 +74,7 @@ if __name__ == "__main__":
         pred_mask = run_pipeline(img, stage0_model, stage1_model, parallel=False)
         nib.save(
             nib.Nifti1Image(pred_mask, affine=np.eye(4)),
-            str(output_dir / rec.name.replace("_gt.nii.gz", "_label.nii.gz")),
+            str(output_dir / Path(rec).name.replace("_gt.nii.gz", "_label.nii.gz")),
         )
 
     print("Generate finished!")

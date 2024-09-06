@@ -67,6 +67,7 @@ jobs:
       run: |
         docker run \
           -e PYTHONUNBUFFERED=1 \
+          -e MBAS2024_REVENGER_TEST=${{ env.MBAS2024_REVENGER_TEST }} \
           -e revenger_data_dir=${{ env.revenger_data_dir }} \
           -e revenger_model_dir=${{ env.revenger_model_dir }} \
           -e mount_data_dir=${{ env.mount_data_dir }} \
