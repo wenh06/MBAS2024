@@ -33,6 +33,7 @@ def cache_pretrained_models():
     )
     model = model.to("cpu").eval()
     print("stage0-model loaded")
+    print(model)
 
     del model, train_config
 
@@ -42,6 +43,7 @@ def cache_pretrained_models():
     )
     model = model.to("cpu").eval()
     print("stage1-model loaded")
+    print(model)
     del model, train_config
 
 

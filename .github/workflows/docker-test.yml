@@ -45,10 +45,15 @@ jobs:
     - name: Build the Docker image
       run: docker build . --file ${{ env.docker_main_filename }} --tag ${{ env.image_tag }}
 
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.10
     - name: Download the training data
       if: ${{ env.status != 'pre' }}
       # use gdown to download the training data
       run: |
+        python -m pip install gdown
         mkdir -p ${{ env.download_data_dir }} ${{ env.output_dir }}
         gdown -O ${{ env.download_data_dir }}/MBAS2024.zip ${{ env.data_gdrive_id }}
         unzip ${{ env.download_data_dir }}/MBAS2024.zip -d ${{ env.download_data_dir }}
