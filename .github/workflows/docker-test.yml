@@ -55,6 +55,7 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     - name: Build and push the Docker image
       uses: docker/build-push-action@v2
+      # build and push the Docker image, and keep the image in the cache
       with:
         context: .
         file: ${{ env.docker_main_filename }}
@@ -84,6 +85,7 @@ jobs:
       # Also, the docker image is run without any internet access.
       if: ${{ env.status != 'pre' }}
       run: |
+        docker images
         docker run \
           -e PYTHONUNBUFFERED=1 \
           -e MBAS2024_REVENGER_TEST=${{ env.MBAS2024_REVENGER_TEST }} \
@@ -93,6 +95,6 @@ jobs:
           -e mount_output_dir=${{ env.mount_output_dir }} \
           -v ${{ env.download_data_dir }}:${{ env.mount_data_dir }} \
           -v ${{ env.output_dir }}:${{ env.mount_output_dir }} \
-          --rm ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.image_tag }} \
+          ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.image_tag }}
         docker ps -a
         ls -l ${{ env.output_dir }}
