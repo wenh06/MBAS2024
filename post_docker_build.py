@@ -27,25 +27,20 @@ def cache_pretrained_models():
     assert (Path(MODEL_CACHE_DIR) / "stage1-model.pth.tar").exists()
 
     # load the pretrained models
-    model, train_config = (
-        MultiHead_MBAS2024.from_checkpoint(
-            Path(MODEL_CACHE_DIR) / "stage0-model.pth.tar",
-            device="cpu",
-        )
-        .to("cpu")
-        .eval()
+    model, train_config = MultiHead_MBAS2024.from_checkpoint(
+        Path(MODEL_CACHE_DIR) / "stage0-model.pth.tar",
+        device="cpu",
     )
+    model = model.to("cpu").eval()
     print("stage0-model loaded")
+
     del model, train_config
 
-    model, train_config = (
-        MultiHead_MBAS2024.from_checkpoint(
-            Path(MODEL_CACHE_DIR) / "stage1-model.pth.tar",
-            device="cpu",
-        )
-        .to("cpu")
-        .eval()
+    model, train_config = MultiHead_MBAS2024.from_checkpoint(
+        Path(MODEL_CACHE_DIR) / "stage1-model.pth.tar",
+        device="cpu",
     )
+    model = model.to("cpu").eval()
     print("stage1-model loaded")
     del model, train_config
 

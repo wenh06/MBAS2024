@@ -63,9 +63,11 @@ if __name__ == "__main__":
         relative=False,
         with_suffix=True,
     )
+    print(f"Total {len(image_files)} records found.")
 
     if TEST_FLAG:
         image_files = np.random.choice(image_files, 10, replace=False)
+        print(f"Test mode: {len(image_files)} records selected.")
 
     for rec in tqdm(image_files, desc="Inference", unit="record", dynamic_ncols=True, mininterval=1.0):
         img = nib.load(rec).get_fdata()
