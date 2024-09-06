@@ -20,7 +20,7 @@ env:
   data_gdrive_id: 1wCcU4DCwmSJHrv0h_6e7sRgK0D_PezAs
   DOCKER_HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKER_HUB_REPOSITORY: deeppsp-mbas2024-docker-image
-  image_tag: latest
+  DOCKER_IMAGE_TAG: latest
 
 jobs:
 
@@ -60,8 +60,10 @@ jobs:
         context: .
         file: ${{ env.docker_main_filename }}
         push: ${{ github.event_name != 'pull_request' }}
+        # set load true so that the image is kept in the cache and can be used in the next steps
+        load: true
         tags: |
-          ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.image_tag }}
+          ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }}
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v5
@@ -95,6 +97,6 @@ jobs:
           -e mount_output_dir=${{ env.mount_output_dir }} \
           -v ${{ env.download_data_dir }}:${{ env.mount_data_dir }} \
           -v ${{ env.output_dir }}:${{ env.mount_output_dir }} \
-          ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.image_tag }}
+          ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }}
         docker ps -a
         ls -l ${{ env.output_dir }}
