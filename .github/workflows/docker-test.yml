@@ -57,6 +57,8 @@ jobs:
         mkdir -p ${{ env.download_data_dir }} ${{ env.output_dir }}
         gdown -O ${{ env.download_data_dir }}/MBAS2024.zip ${{ env.data_gdrive_id }}
         unzip ${{ env.download_data_dir }}/MBAS2024.zip -d ${{ env.download_data_dir }}
+        rm ${{ env.download_data_dir }}/MBAS2024.zip
+        rm -rf ${{ env.download_data_dir }}/__MACOSX
         du -sh ${{ env.download_data_dir }}
 
     - name: Run the Docker image

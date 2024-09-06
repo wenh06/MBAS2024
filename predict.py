@@ -59,7 +59,7 @@ if __name__ == "__main__":
     # predict the results, here is just an example. Pls build your own logic here
     image_files = get_record_list_recursive3(
         Path(args.input_dir).expanduser().resolve(),
-        rec_patterns="_gt\\.nii\\.gz",
+        rec_patterns="^(?!\\._).*_gt\\.nii\\.gz",  # ignore the hidden backup files (e.g. in __MACOSX)
         relative=False,
         with_suffix=True,
     )
