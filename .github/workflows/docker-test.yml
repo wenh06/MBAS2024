@@ -86,9 +86,6 @@ jobs:
         du -sh ${{ env.download_data_dir }}
 
     - name: Run the Docker image
-      # NOTE: mount env.download_data_dir to env.mount_data_dir
-      # and set it read-only as in the CinC2024 challenge settings.
-      # Also, the docker image is run without any internet access.
       if: ${{ env.status != 'pre' }}
       run: |
         docker images
