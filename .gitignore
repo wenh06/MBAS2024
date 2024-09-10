@@ -156,3 +156,7 @@ mask_predictions
 !saved_models
 saved_models/*
 !saved_models/.keep
+
+!save_pths
+save_pths/*
+!save_pths/README.md

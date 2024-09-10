@@ -32,11 +32,10 @@ if __name__ == "__main__":
     parser.add_argument("--input_dir", type=str, default="/input", help="path to input")
     parser.add_argument("--output_dir", type=str, default="/output", help="path to input")
     parser.add_argument(
-        "--model-dir",
+        "--model_pth",
         type=str,
         default=MODEL_CACHE_DIR,
         help="Directory of the trained models.",
-        dest="model_dir",
     )
     args = parser.parse_args()
 
@@ -50,9 +49,12 @@ if __name__ == "__main__":
         warnings.warn("CUDA is not available. Using CPU for inference.")
     device = torch.device(args.device)
 
-    model_dir = Path(args.model_dir).expanduser().resolve()
-    stage0_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage0-model.pth.tar", device=device)[0]
-    stage1_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage1-model.pth.tar", device=device)[0]
+    # model_pth = Path(args.model_pth).expanduser().resolve()
+    # Since we are using the same model for validation and testing, we will treat the cli argument `model_pth` a dummy argument,
+    # and use our pre-defined path (see the environment variable `MODEL_CACHE_DIR` of the `Dockerfile`) to load the models.
+    model_pth = Path(MODEL_CACHE_DIR).expanduser().resolve()
+    stage0_model = MultiHead_MBAS2024.from_checkpoint(model_pth / "stage0-model.pth.tar", device=device)[0]
+    stage1_model = MultiHead_MBAS2024.from_checkpoint(model_pth / "stage1-model.pth.tar", device=device)[0]
     stage0_model = stage0_model.to(device).eval()
     stage1_model = stage1_model.to(device).eval()
 

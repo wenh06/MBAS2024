@@ -9,13 +9,18 @@ FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime
 # pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime has python version 3.10.14, system version Ubuntu 22.04.4 LTS
 
 
+## The MAINTAINER instruction sets the author field of the generated images.
+LABEL maintainer="wenh06@gmail.com"
+
+
 # set the environment variable to avoid interactive installation
 # which might stuck the docker build process
 ENV DEBIAN_FRONTEND=noninteractive
 
 ENV HUGGINGFACE_HUB_CACHE=/challenge/cache/revenger_model_dir
 ENV HF_HUB_CACHE=/challenge/cache/revenger_model_dir
-ENV MODEL_CACHE_DIR=/challenge/cache/revenger_model_dir
+# ENV MODEL_CACHE_DIR=/challenge/cache/revenger_model_dir
+ENV MODEL_CACHE_DIR=/challenge/save_pths/val-test.pth
 ENV GIT_CLONE_DIR=/challenge/cache/git_clone_dir
 
 ENV INPUT_DIR=/input
@@ -41,10 +46,6 @@ RUN python --version
 
 # check CUDA version of the base image if is installed
 RUN if [ -x "$(command -v nvcc)" ]; then nvcc --version; fi
-
-
-## The MAINTAINER instruction sets the author field of the generated images.
-LABEL maintainer="wenh06@gmail.com"
 
 
 # latest version of biosppy uses opencv
