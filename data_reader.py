@@ -359,7 +359,7 @@ class MBAS2024(_DataBase):
         data : numpy.ndarray, optional
             The pre-loaded 3D LGE-MRI data.
             If None, it will be loaded.
-            This is useful when the data is processed, i.e., using CLAHE, etc.
+            This is useful when the data is processed, i.e., using MCLAHE, etc.
 
         """
         if "plt" not in globals():
@@ -405,7 +405,7 @@ class MBAS2024(_DataBase):
         for ax_idx, chan_idx in enumerate(channels):
             ax[ax_idx].set_axis_off()
             ax[ax_idx].imshow(data[..., chan_idx], cmap="gray")
-            ax[ax_idx].set_title(f"Channel {chan_idx}")
+            ax[ax_idx].set_title(f"Slice {chan_idx}")
             # add annotation
             chan_ann = seg_ann[..., chan_idx]
             # for cls_ in np.unique(chan_ann):
