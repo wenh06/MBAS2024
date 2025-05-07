@@ -1,9 +1,8 @@
-import cv2 as cv
 import numpy as np
 import torch
-from scipy.ndimage import convolve
+import torch.nn as nn
+import torch.nn.functional as F
 from scipy.ndimage import distance_transform_edt as edt
-from torch import nn
 
 """
 Hausdorff loss implementation based on paper:
@@ -81,77 +80,52 @@ class HausdorffERLoss(nn.Module):
         super().__init__()
         self.alpha = alpha
         self.erosions = erosions
-        self.prepare_kernels()
 
-    def prepare_kernels(self):
-        cross = np.array([cv.getStructuringElement(cv.MORPH_CROSS, (3, 3))])
-        bound = np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]])
+        # Register kernels as buffers
+        cross = torch.tensor([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=torch.float32)
+        bound = torch.tensor([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=torch.float32)
 
-        self.kernel2D = cross * 0.2
-        self.kernel3D = np.array([bound, cross, bound]) * (1 / 7)
+        kernel2D = cross.unsqueeze(0).unsqueeze(0) / 5
+        kernel3D = torch.stack([bound, cross, bound]).unsqueeze(0).unsqueeze(0) / 7
 
-    @torch.no_grad()
-    def perform_erosion(self, pred: np.ndarray, target: np.ndarray, debug) -> np.ndarray:
+        self.register_buffer("kernel2D", kernel2D)
+        self.register_buffer("kernel3D", kernel3D)
+
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        pred and target can have shapes:
+        - 2D: (B, 1, H, W) or (B, C, H, W)
+        - 3D: (B, 1, D, H, W) or (B, C, D, H, W)
+
+        In case of multi-channel predictions, `argmax` is applied to get binary predictions.
+        """
+        # If multi-channel prediction, apply argmax and convert to binary (1 - foreground)
+        if pred.shape[1] > 1:
+            pred = torch.argmax(pred, dim=1, keepdim=True).float()
+        if target.shape[1] > 1:
+            target = torch.argmax(target, dim=1, keepdim=True).float()
+
+        assert pred.shape == target.shape, f"Shapes must match, got {pred.shape=} and {target.shape=}"
+        assert pred.dim() in (4, 5), f"Only 2D and 3D inputs are supported, got {pred.dim()=}"
+
         bound = (pred - target) ** 2
+        eroded = torch.zeros_like(bound)
+        kernel = self.kernel3D if bound.dim() == 5 else self.kernel2D
 
-        if bound.ndim == 5:
-            kernel = self.kernel3D
-        elif bound.ndim == 4:
-            kernel = self.kernel2D
-        else:
-            raise ValueError(f"Dimension {bound.ndim} is nor supported.")
+        for k in range(self.erosions):
+            # Perform convolution to simulate erosion/dilation
+            bound = F.conv3d(bound, kernel, padding=1) if bound.dim() == 5 else F.conv2d(bound, kernel, padding=1)
 
-        eroted = np.zeros_like(bound)
-        erosions = []
+            # Soft thresholding and normalization
+            erosion = bound - 0.5
+            erosion = F.relu(erosion)
 
-        for batch in range(len(bound)):
+            ptp = erosion.amax(dim=[2, 3, 4] if bound.dim() == 5 else [2, 3], keepdim=True) - erosion.amin(
+                dim=[2, 3, 4] if bound.dim() == 5 else [2, 3], keepdim=True
+            )
+            ptp = ptp + 1e-6  # Avoid division by zero
+            erosion = erosion / ptp
 
-            # debug
-            erosions.append(np.copy(bound[batch][0]))
+            eroded += erosion * (k + 1) ** self.alpha
 
-            for k in range(self.erosions):
-
-                # compute convolution with kernel
-                dilation = convolve(bound[batch], kernel, mode="constant", cval=0.0)
-
-                # apply soft thresholding at 0.5 and normalize
-                erosion = dilation - 0.5
-                erosion[erosion < 0] = 0
-
-                if erosion.ptp() != 0:
-                    erosion = (erosion - erosion.min()) / erosion.ptp()
-
-                # save erosion and add to loss
-                bound[batch] = erosion
-                eroted[batch] += erosion * (k + 1) ** self.alpha
-
-                if debug:
-                    erosions.append(np.copy(erosion[0]))
-
-        # image visualization in debug mode
-        if debug:
-            return eroted, erosions
-        else:
-            return eroted
-
-    def forward(self, pred: torch.Tensor, target: torch.Tensor, debug=False) -> torch.Tensor:
-        """
-        Uses one binary channel: 1 - fg, 0 - bg
-        pred: (b, 1, x, y, z) or (b, 1, x, y)
-        target: (b, 1, x, y, z) or (b, 1, x, y)
-        """
-        assert pred.dim() == 4 or pred.dim() == 5, "Only 2D and 3D supported"
-        assert pred.dim() == target.dim(), "Prediction and target need to be of same dimension"
-
-        # pred = torch.sigmoid(pred)
-
-        if debug:
-            eroted, erosions = self.perform_erosion(pred.cpu().numpy(), target.cpu().numpy(), debug)
-            return eroted.mean(), erosions
-
-        else:
-            eroted = torch.from_numpy(self.perform_erosion(pred.cpu().numpy(), target.cpu().numpy(), debug)).float()
-
-            loss = eroted.mean()
-
-            return loss
+        return eroded.mean()

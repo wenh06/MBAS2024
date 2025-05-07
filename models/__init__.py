@@ -34,9 +34,6 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
 
     Parameters
     ----------
-    stage : {0, 1}
-        Stage 0 or 1 of the pipeline.
-        0 for raw localization, 1 for fine segmentation.
     config : dict
         Hyper-parameters, including backbone_name, etc.
         ref. the corresponding config file.
@@ -78,7 +75,7 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
         labels : dict, optional
             Labels for training, including
             - "mask": optional for training the segmentation head, of shape (B, H, W, D, C).
-            - "weight_mask": optional for training the segmentation head.
+            - "weight_mask": optional for training the segmentation head, of shape (B, H, W, D, 1).
 
         Returns
         -------
