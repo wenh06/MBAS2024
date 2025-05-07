@@ -21,6 +21,7 @@ from outputs import MBAS2024Outputs
 from utils.mclahe_tf import mclahe  # noqa: F401
 
 from .nested_vnet import NestedVNet
+from .seg_loss_odyssey import setup_odyssey_criterion
 from .vnet import VNet
 
 __all__ = [
@@ -73,10 +74,10 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
         Parameters
         ----------
         img : torch.Tensor
-            Input LGE-MRI image tensor.
+            Input LGE-MRI image tensor, of shape (B, C, H, W, D).
         labels : dict, optional
             Labels for training, including
-            - "mask": optional for training the segmentation head.
+            - "mask": optional for training the segmentation head, of shape (B, H, W, D, C).
             - "weight_mask": optional for training the segmentation head.
 
         Returns
@@ -160,11 +161,12 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
         ----------
         img : numpy.ndarray or torch.Tensor or list
             Input LGE-MRI image(s).
+            Each image should be of shape (C, H, W, D) or (H, W, D).
 
         Returns
         -------
         torch.Tensor
-            The input tensor.
+            The input tensor, of shape (B, C, H, W, D).
 
         """
         if isinstance(img, (list, tuple)):
@@ -201,6 +203,12 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
         """
         if loss_kw is None:
             loss_kw = {}
-        criterion = setup_criterion(loss, **loss_kw)
+        try:
+            criterion = setup_criterion(loss, **loss_kw)
+        except NotImplementedError:
+            # if the loss is not implemented in torch_ecg, try to use odyssey
+            criterion = setup_odyssey_criterion(loss, **loss_kw)
+        except Exception as e:
+            raise e
         criterion = criterion.to(device=self.device, dtype=self.dtype)
         return criterion
