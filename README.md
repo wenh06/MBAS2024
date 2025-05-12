@@ -5,6 +5,8 @@
 - [Introduction](#introduction)
 - [Description of the files/folders(modules)](#description-of-the-filesfoldersmodules)
 - [Deep learning models for medical image studies](#deep-learning-models-for-medical-image-studies)
+- [Validation phase leaderboard](#validation-phase-leaderboard)
+- [Conference proceedings](#conference-proceedings)
 
 <!-- tocstop -->
 
@@ -71,3 +73,8 @@ to be added....
 ## Validation phase leaderboard
 
 [Leaderboard](https://docs.google.com/spreadsheets/d/1YJvwBJjli6htgvomZxk--wPbyq8PtTWBbFIQBw-eroE/)
+
+
+## Conference proceedings
+
+[Conference proceedings](https://stacom.github.io/stacom2024/papers/#multiclass-bi-atrial-segmentation-challenge-papers)
