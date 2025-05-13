@@ -107,7 +107,7 @@ def compute_challenge_metrics(
         disable=not progress,
     ):
         if isinstance(output, MBAS2024Outputs):
-            pred_mask = output.pred_mask
+            pred_mask = output.pred_mask[0]  # remove the batch dim
         else:
             pred_mask = output
         if pred_mask.ndim == 4:
@@ -238,7 +238,12 @@ def official_calculate_metric_percase(pred: np.ndarray, gt: np.ndarray) -> Tuple
         pred = np.moveaxis(pred, -1, 0)
         gt = np.moveaxis(gt, -1, 0)
     dice = medpy_metric.binary.dc(pred, gt)
-    hd95 = medpy_metric.binary.hd95(pred, gt, voxelspacing=(2.5, 0.625, 0.625))
+    if np.unique(pred).shape[0] == 1:
+        # medpy_metric.binary.hd95 would raise
+        # RuntimeError: The first supplied array does not contain any binary object.
+        hd95 = np.nan
+    else:
+        hd95 = medpy_metric.binary.hd95(pred, gt, voxelspacing=(2.5, 0.625, 0.625))
     # print('dice, hd95', dice, hd95)
     return dice, hd95
 

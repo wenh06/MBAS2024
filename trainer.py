@@ -255,7 +255,7 @@ class MBAS2024Trainer(BaseTrainer):
                 image = input_tensors.pop("image")
                 labels = {k: v.numpy() for k, v in input_tensors.items() if v is not None}
 
-                all_labels.append(labels)
+                all_labels.append(labels["mask"][0])  # remove the batch dim
 
                 if torch.cuda.is_available():
                     torch.cuda.synchronize()
