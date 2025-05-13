@@ -21,7 +21,7 @@ from outputs import MBAS2024Outputs
 from utils.mclahe_tf import mclahe  # noqa: F401
 
 from .nested_vnet import NestedVNet
-from .seg_loss_odyssey import setup_odyssey_criterion
+from .seg_loss_odyssey import available_losses, setup_odyssey_criterion
 from .vnet import VNet
 
 __all__ = [
@@ -206,6 +206,6 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
             # if the loss is not implemented in torch_ecg, try to use odyssey
             criterion = setup_odyssey_criterion(loss, **loss_kw)
         except Exception as e:
-            raise e
+            raise ValueError(f"Available loss functions: {list(available_losses)}") from e
         criterion = criterion.to(device=self.device, dtype=self.dtype)
         return criterion

@@ -17,6 +17,7 @@ from .hausdorff import HausdorffDTLoss, HausdorffERLoss
 from .lovasz_loss import LovaszSoftmax
 
 __all__ = [
+    "available_losses",
     "setup_odyssey_criterion",
     "BDLoss",
     "DC_and_BD_loss",
@@ -35,6 +36,13 @@ __all__ = [
     "HausdorffERLoss",
     "LovaszSoftmax",
 ]
+
+
+available_losses = {
+    name: obj
+    for name, obj in globals().items()
+    if isinstance(obj, type) and issubclass(obj, torch.nn.Module) and name not in ["SegLossOdyssey", "SegLossOdysseyTransforms"]
+}
 
 
 class SegLossOdysseyTransforms(torch.nn.Module):
