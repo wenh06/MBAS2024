@@ -209,10 +209,8 @@ class MBAS2024Trainer(BaseTrainer):
         ----------
         input_tensors : dict
             the tensors to be processed for training one step (batch), with the following items:
-                - "image" (required): the input waveforms
-                - "dx" (optional): the Dx classification labels
-                - "digitization" (optional): the signal reconstruction labels
-                - "mask" (optional): the mask for the signal reconstruction
+                - "image" (required): the input LG-MRI
+                - "mask" (required): the mask for the segmentation task
 
         Returns
         -------
@@ -232,6 +230,7 @@ class MBAS2024Trainer(BaseTrainer):
     def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
         """Evaluate the model on the given data loader"""
 
+        original_state = self.model.training
         self.model.eval()
 
         all_outputs = []
@@ -248,9 +247,7 @@ class MBAS2024Trainer(BaseTrainer):
             for input_tensors in data_loader:
                 # input_tensors is assumed to be a dict of tensors, with the following items:
                 # "image" (required): the input image list
-                # "dx" (optional): the Dx classification labels
-                # "digitization" (optional): the signal reconstruction labels
-                # "mask" (optional): the mask for the signal reconstruction
+                # "mask" (optional): the mask for the segmentation task
                 # image = self._model.get_input_tensors(input_tensors.pop("image"))
                 image = input_tensors.pop("image")
                 labels = {k: v.numpy() for k, v in input_tensors.items() if v is not None}
@@ -275,7 +272,7 @@ class MBAS2024Trainer(BaseTrainer):
         del all_labels
         del all_outputs
 
-        self.model.train()
+        self.model.train(original_state)
 
         return eval_res
 

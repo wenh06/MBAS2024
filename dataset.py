@@ -190,9 +190,11 @@ class MBAS2024Dataset(Dataset, ReprMixin):
         # if using the binary cross-entropy (BCE) loss or loss function based on BCE loss
         # the mask should be binary
         self.__cache["coarse_mask"] = F.one_hot(
-            torch.tensor(self.__cache["coarse_mask"], dtype=torch.int64), num_classes=2
+            torch.tensor(self.__cache["coarse_mask"], dtype=torch.float32), num_classes=2
         ).numpy()
-        self.__cache["fine_mask"] = F.one_hot(torch.tensor(self.__cache["fine_mask"], dtype=torch.int64), num_classes=4).numpy()
+        self.__cache["fine_mask"] = F.one_hot(
+            torch.tensor(self.__cache["fine_mask"], dtype=torch.float32), num_classes=4
+        ).numpy()
 
     @property
     def cache(self) -> Dict[str, np.ndarray]:
