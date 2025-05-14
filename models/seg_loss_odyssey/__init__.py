@@ -13,6 +13,7 @@ from .dice_loss import (
     SSLoss,
     TverskyLoss,
 )
+from .focal_loss import FocalLoss as FocalLossV2
 from .hausdorff import HausdorffDTLoss, HausdorffERLoss
 from .lovasz_loss import LovaszSoftmax
 
@@ -26,6 +27,7 @@ __all__ = [
     "DC_and_topk_loss",
     "ExpLog_loss",
     "FocalTversky_loss",
+    "FocalLossV2",
     "GDiceLoss",
     "GDiceLossV2",
     "IoULoss",

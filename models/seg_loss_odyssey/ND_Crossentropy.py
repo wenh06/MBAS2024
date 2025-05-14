@@ -42,7 +42,7 @@ class TopKLoss(CrossentropyND):
 
     def __init__(self, weight=None, ignore_index=-100, k=10):
         self.k = k
-        super().__init__(weight, False, ignore_index, reduce=False)
+        super().__init__(weight, False, ignore_index, reduction="none")
 
     def forward(self, inp, target):
         target = target[:, 0].long()

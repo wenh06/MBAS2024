@@ -145,11 +145,11 @@ class SoftDiceLoss(nn.Module):
 
 
 class DC_and_BD_loss(nn.Module):
-    def __init__(self, soft_dice_kwargs, bd_kwargs, aggregate="sum"):
+    def __init__(self, soft_dice_kwargs=None, bd_kwargs=None, aggregate="sum"):
         super().__init__()
         self.aggregate = aggregate
-        self.bd = BDLoss(**bd_kwargs)
-        self.dc = SoftDiceLoss(apply_nonlin=softmax_helper, **soft_dice_kwargs)
+        self.bd = BDLoss(**(bd_kwargs or {}))
+        self.dc = SoftDiceLoss(apply_nonlin=softmax_helper, **(soft_dice_kwargs or {}))
 
     def forward(self, net_output, target, bound):
         dc_loss = self.dc(net_output, target)

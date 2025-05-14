@@ -374,10 +374,10 @@ class FocalTversky_loss(nn.Module):
     author code: https://github.com/nabsabraham/focal-tversky-unet/blob/347d39117c24540400dfe80d106d2fb06d2b99e1/losses.py#L65
     """
 
-    def __init__(self, tversky_kwargs, gamma=0.75):
+    def __init__(self, tversky_kwargs=None, gamma=0.75):
         super().__init__()
         self.gamma = gamma
-        self.tversky = TverskyLoss(**tversky_kwargs)
+        self.tversky = TverskyLoss(**(tversky_kwargs or {}))
 
     def forward(self, net_output, target):
         tversky_loss = 1 + self.tversky(net_output, target)  # = 1-tversky(net_output, target)
@@ -425,11 +425,11 @@ class AsymLoss(nn.Module):
 
 
 class DC_and_CE_loss(nn.Module):
-    def __init__(self, soft_dice_kwargs, ce_kwargs, aggregate="sum"):
+    def __init__(self, soft_dice_kwargs=None, ce_kwargs=None, aggregate="sum"):
         super().__init__()
         self.aggregate = aggregate
-        self.ce = CrossentropyND(**ce_kwargs)
-        self.dc = SoftDiceLoss(apply_nonlin=softmax_helper, **soft_dice_kwargs)
+        self.ce = CrossentropyND(**(ce_kwargs or {}))
+        self.dc = SoftDiceLoss(apply_nonlin=softmax_helper, **(soft_dice_kwargs or {}))
 
     def forward(self, net_output, target):
         dc_loss = self.dc(net_output, target)
@@ -446,10 +446,10 @@ class PenaltyGDiceLoss(nn.Module):
     paper: https://openreview.net/forum?id=H1lTh8unKN
     """
 
-    def __init__(self, gdice_kwargs):
+    def __init__(self, gdice_kwargs=None):
         super().__init__()
         self.k = 2.5
-        self.gdc = GDiceLoss(apply_nonlin=softmax_helper, **gdice_kwargs)
+        self.gdc = GDiceLoss(apply_nonlin=softmax_helper, **(gdice_kwargs or {}))
 
     def forward(self, net_output, target):
         gdc_loss = self.gdc(net_output, target)
@@ -459,11 +459,11 @@ class PenaltyGDiceLoss(nn.Module):
 
 
 class DC_and_topk_loss(nn.Module):
-    def __init__(self, soft_dice_kwargs, ce_kwargs, aggregate="sum"):
+    def __init__(self, soft_dice_kwargs=None, ce_kwargs=None, aggregate="sum"):
         super().__init__()
         self.aggregate = aggregate
-        self.ce = TopKLoss(**ce_kwargs)
-        self.dc = SoftDiceLoss(apply_nonlin=softmax_helper, **soft_dice_kwargs)
+        self.ce = TopKLoss(**(ce_kwargs or {}))
+        self.dc = SoftDiceLoss(apply_nonlin=softmax_helper, **(soft_dice_kwargs or {}))
 
     def forward(self, net_output, target):
         dc_loss = self.dc(net_output, target)
