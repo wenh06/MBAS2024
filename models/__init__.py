@@ -1,7 +1,5 @@
 """
-MBAS2024 model.
-
-It is a multi-head model for MBAS2024 challenge.
+Models for the MBAS2024 challenge.
 """
 
 from copy import deepcopy
@@ -26,6 +24,7 @@ from .vnet import VNet
 
 __all__ = [
     "MultiHead_MBAS2024",
+    "Ensemble_MBAS2024",
 ]
 
 
@@ -216,6 +215,9 @@ class Ensemble_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
 
     Parameters
     ----------
+    base_models : list
+        List of base models, each of which should be an instance of MultiHead_MBAS2024,
+        usually with different backbones, e.g. VNet, NestedVNet, etc.
     config : dict
         Hyper-parameters, including backbone_name, etc.
         ref. the corresponding config file.
@@ -225,7 +227,7 @@ class Ensemble_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
     __DEBUG__ = True
     __name__ = "Ensemble_MBAS2024"
 
-    def __init__(self, base_models: Sequence[nn.Module], config: Optional[CFG] = None, **kwargs: Any) -> None:
+    def __init__(self, base_models: Sequence[MultiHead_MBAS2024], config: Optional[CFG] = None, **kwargs: Any) -> None:
         super().__init__()
         self.__config = deepcopy(ModelCfg)
         if config is not None:

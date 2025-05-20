@@ -304,6 +304,57 @@ class MBAS2024Trainer(BaseTrainer):
         pass
 
 
+@torch.no_grad()
+def evaluate_model(model: nn.Module, data_loader: DataLoader) -> Dict[str, float]:
+    """Evaluate the model on the given data loader"""
+
+    original_state = model.training
+    model.eval()
+
+    all_outputs = []
+    all_labels = []
+
+    with tqdm(
+        total=len(data_loader.dataset),
+        desc="Evaluation",
+        unit="image",
+        dynamic_ncols=True,
+        mininterval=1.0,
+        leave=False,
+    ) as pbar:
+        for input_tensors in data_loader:
+            # input_tensors is assumed to be a dict of tensors, with the following items:
+            # "image" (required): the input image list
+            # "mask" (optional): the mask for the segmentation task
+            # image = self._model.get_input_tensors(input_tensors.pop("image"))
+            image = input_tensors.pop("image")
+            labels = {k: v.numpy() for k, v in input_tensors.items() if v is not None}
+
+            all_labels.append(labels["mask"][0])  # remove the batch dim
+
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            all_outputs.append(model.inference(image))  # of type MBAS2024Outputs
+            pbar.update(len(image))
+
+    eval_res = compute_challenge_metrics(
+        labels=all_labels,
+        outputs=all_outputs,
+        ignore_index=[0],  # ignore background
+        average="samples-flatten",  # to format "class-metric": value
+        use_official_metric=True,
+        progress=True,
+    )
+
+    # in case possible memeory leakage?
+    del all_labels
+    del all_outputs
+
+    model.train(original_state)
+
+    return eval_res
+
+
 def get_args(**kwargs: Any):
     """NOT checked,"""
     cfg = deepcopy(kwargs)
