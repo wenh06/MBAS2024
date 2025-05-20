@@ -40,7 +40,7 @@ class TopKLoss(CrossentropyND):
     Network has to have NO LINEARITY!
     """
 
-    def __init__(self, weight=None, ignore_index=-100, k=10):
+    def __init__(self, weight=None, ignore_index=-100, k=2):
         self.k = k
         super().__init__(weight, False, ignore_index, reduction="none")
 

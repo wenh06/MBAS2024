@@ -5,7 +5,7 @@ It is a multi-head model for MBAS2024 challenge.
 """
 
 from copy import deepcopy
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 import torch
@@ -143,8 +143,186 @@ class MultiHead_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
         output = self.forward(input_tensors)
         self.train(original_mode)
         return MBAS2024Outputs(
-            pred_mask=output["seg_mask"].cpu().numpy(),
+            pred_mask=output["seg_mask"].detach().cpu().numpy(),
         )
+
+    @property
+    def config(self) -> CFG:
+        return self.__config
+
+    def get_input_tensors(self, img: INPUT_IMAGE_TYPES) -> torch.Tensor:
+        """Make the input tensor into a batched tensor,
+        and perform necessary preprocessing.
+
+        Parameters
+        ----------
+        img : numpy.ndarray or torch.Tensor or list
+            Input LGE-MRI image(s).
+            Each image should be of shape (C, H, W, D) or (H, W, D).
+
+        Returns
+        -------
+        torch.Tensor
+            The input tensor, of shape (B, C, H, W, D).
+
+        """
+        if isinstance(img, (list, tuple)):
+            img = torch.stack([item if isinstance(item, torch.Tensor) else torch.from_numpy(item) for item in img])
+        elif isinstance(img, np.ndarray):
+            img = torch.from_numpy(img)
+        elif isinstance(img, torch.Tensor):
+            pass
+        else:
+            raise ValueError(f"Unsupported input type: {type(img)}")
+        img = img.to(device=self.device, dtype=self.dtype)
+        for _ in range(5 - img.ndim):
+            img = img.unsqueeze(0)
+        # img of shape (B, C, H, W, D)
+        # sample-wise normalization
+        img = (img - img.mean(dim=(1, 2, 3, 4), keepdim=True)) / (img.std(dim=(1, 2, 3, 4), keepdim=True) + 1e-8)
+        return img
+
+    def _setup_criterion(self, loss: str, loss_kw: Optional[Dict[str, Any]] = None) -> nn.Module:
+        """Setup the loss function.
+
+        Parameters
+        ----------
+        loss : str
+            Name of the loss function.
+        loss_kw : dict
+            Keyword arguments for the loss function.
+
+        Returns
+        -------
+        nn.Module
+            The loss function.
+
+        """
+        if loss_kw is None:
+            loss_kw = {}
+        try:
+            criterion = setup_criterion(loss, **loss_kw)
+        except NotImplementedError:
+            # if the loss is not implemented in torch_ecg, try to use odyssey
+            criterion = setup_odyssey_criterion(loss, **loss_kw)
+        except Exception as e:
+            raise ValueError(f"Available loss functions: {list(available_losses)}") from e
+        criterion = criterion.to(device=self.device, dtype=self.dtype)
+        return criterion
+
+
+class Ensemble_MBAS2024(nn.Module, SizeMixin, CkptMixin, CitationMixin):
+    """Ensemble model for MBAS2024.
+
+    Parameters
+    ----------
+    config : dict
+        Hyper-parameters, including backbone_name, etc.
+        ref. the corresponding config file.
+
+    """
+
+    __DEBUG__ = True
+    __name__ = "Ensemble_MBAS2024"
+
+    def __init__(self, base_models: Sequence[nn.Module], config: Optional[CFG] = None, **kwargs: Any) -> None:
+        super().__init__()
+        self.__config = deepcopy(ModelCfg)
+        if config is not None:
+            self.__config.update((config or {}).copy())
+        assert self.config.stage == 1, "stage must be 1"
+        nums_classes = 4
+
+        self.base_models = nn.ModuleList(base_models)
+
+        # segmentation head accepts stacked logits from the base models (shape (B, H, W, D, C x N).)
+        # and outputs the final logits
+        self.segmentation_head = nn.Conv3d(
+            in_channels=nums_classes * len(self.base_models),
+            out_channels=nums_classes,
+            kernel_size=3,
+            padding="same",
+        )
+
+        self.segmentation_loss = self._setup_criterion(self.config.seg_loss, self.config.seg_loss_kw)
+
+    def forward(
+        self,
+        img: torch.Tensor,
+        labels: Optional[Dict[str, torch.Tensor]] = None,
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass of the model.
+
+        Parameters
+        ----------
+        img : torch.Tensor
+            Input LGE-MRI image tensor, of shape (B, C, H, W, D).
+        labels : dict, optional
+            Labels for training, including
+            - "mask": optional for training the segmentation head, of shape (B, H, W, D, C).
+            - "weight_mask": optional for training the segmentation head, of shape (B, H, W, D, 1).
+
+        Returns
+        -------
+        dict
+            Predictions, including "seg_logits" and "seg_mask" for segmentation,
+            and the loss if any of the labels is provided.
+
+        """
+        img = img.to(device=self.device)
+        base_logits = []
+        for model in self.base_models:
+            out_logits = model(img)["seg_logits"]  # (B, C, H, W, D)
+            if isinstance(out_logits, torch.Tensor):
+                base_logits.append(out_logits)
+            else:
+                # list of tensors, via deep supervision
+                base_logits.append(out_logits[-1])
+        # print(f"shapes of base_logits: {[item.shape for item in base_logits]}")
+        seg_logits = self.segmentation_head(torch.cat(base_logits, dim=-1).permute(0, 4, 1, 2, 3)).permute(
+            0, 2, 3, 4, 1
+        )  # (B, H, W, D, C)
+        seg_mask = torch.softmax(seg_logits, dim=-1).argmax(dim=-1)  # (B, H, W, D)
+        output = {"seg_logits": seg_logits, "seg_mask": seg_mask}
+        if labels is not None:
+            if self.config.seg_loss == "MaskedBCEWithLogitsLoss":
+                output["seg_loss"] = self.segmentation_loss(
+                    seg_logits, labels["mask"].to(self.device), labels["weight_mask"].to(self.device)
+                )
+            else:
+                output["seg_loss"] = self.segmentation_loss(seg_logits, labels["mask"].to(self.device))
+            output["total_loss"] = output["seg_loss"]
+        return output
+
+    @torch.no_grad()
+    def inference(self, img: INPUT_IMAGE_TYPES) -> MBAS2024Outputs:
+        """Inference on a single image or a batch of images.
+
+        Parameters
+        ----------
+        img : numpy.ndarray or torch.Tensor or list
+            Input LGE-MRI image.
+
+        Returns
+        -------
+        MBAS2024Outputs
+            Predictions, including "pred_mask" for segmentation.
+
+        """
+        original_mode = self.training
+        self.eval()
+        input_tensors = self.get_input_tensors(img)
+        output = self.forward(input_tensors)
+        self.train(original_mode)
+        return MBAS2024Outputs(
+            pred_mask=output["seg_mask"].detach().cpu().numpy(),
+        )
+
+    def freeze_base_models(self) -> None:
+        """Freeze the base models."""
+        for model in self.base_models:
+            for param in model.parameters():
+                param.requires_grad = False
 
     @property
     def config(self) -> CFG:
