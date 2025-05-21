@@ -59,6 +59,13 @@ to be added....
 - [models](models): folder for model definitions, currently containing [VNet models](models/vnet.py), and [nested VNet models](models/nested_vnet.py). [Custom loss functions](models/loss) are also included in this folder, but not implemented yet.
 - [utils](utils): utility functions for [computing the metrics](utils/scoring_metrics.py), and most importantly, for conducting Multidimensional Contrast Limited Adaptive Histogram Equalization ([MCLAHE](utils/mclahe_tf.py)).
 
+### Non-code folders
+
+- [images](images): folder for storing the (preprocessed) images examples of the MRI scans, and loss curves of some of the training experiments.
+- [results](results): folder for storing the log files (txt, csv, json) of the training experiments.
+- [save_pths](save_pths): folder for storing the trained models when running the submission pipeline, as required by the MBAS 2024 challenge.
+- [saved_models](saved_models): folder for storing the trained models (final models) when running the training notebook.
+
 <details>
 <summary>Click to view the details</summary>
 
