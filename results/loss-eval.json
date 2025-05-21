@@ -1,0 +1,183 @@
+{
+    "vnet": {
+        "ExpLog_loss": [
+            {
+                "left & right atrial walls-Dice": 0.7851600445934696,
+                "left & right atrial walls-HD95": 2.162445463110477,
+                "left & right atrial walls-IoU": 0.6518320410261134,
+                "right atrium-Dice": 0.9407366254992068,
+                "right atrium-HD95": 2.7178247334362062,
+                "right atrium-IoU": 0.8954032588141976,
+                "left atrium-Dice": 0.9529062505357814,
+                "left atrium-HD95": 2.5321682065432327,
+                "left atrium-IoU": 0.9128205518067773
+            },
+            {
+                "left & right atrial walls-Dice": 0.7659627108514193,
+                "left & right atrial walls-HD95": 2.9771875582227123,
+                "left & right atrial walls-IoU": 0.6349169921876948,
+                "right atrium-Dice": 0.9063654082470164,
+                "right atrium-HD95": 4.122521296045056,
+                "right atrium-IoU": 0.8608351305013592,
+                "left atrium-Dice": 0.9295877418791889,
+                "left atrium-HD95": 2.9782892373184158,
+                "left atrium-IoU": 0.8861615250041065
+            },
+            {
+                "left & right atrial walls-Dice": 0.8083779857633705,
+                "left & right atrial walls-HD95": 1.6487781943380937,
+                "left & right atrial walls-IoU": 0.6812277194300173,
+                "right atrium-Dice": 0.9586576290789564,
+                "right atrium-HD95": 1.968555271726946,
+                "right atrium-IoU": 0.9215840062043337,
+                "left atrium-Dice": 0.9589046062983958,
+                "left atrium-HD95": 2.319308946017095,
+                "left atrium-IoU": 0.9230232472813547
+            }
+        ],
+        "AsymmetricLoss": [
+            {
+                "left & right atrial walls-Dice": 0.763747416674771,
+                "left & right atrial walls-HD95": 2.588737768348303,
+                "left & right atrial walls-IoU": 0.6256510329069717,
+                "right atrium-Dice": 0.9293939101458504,
+                "right atrium-HD95": 3.6903389884767632,
+                "right atrium-IoU": 0.8830757105208459,
+                "left atrium-Dice": 0.9489928735046476,
+                "left atrium-HD95": 2.4986184860060376,
+                "left atrium-IoU": 0.9068141618844272
+            },
+            {
+                "left & right atrial walls-Dice": 0.7110076159185317,
+                "left & right atrial walls-HD95": 2.6087409903954675,
+                "left & right atrial walls-IoU": 0.5557252670173607,
+                "right atrium-Dice": 0.9422423289281483,
+                "right atrium-HD95": 2.526376145384778,
+                "right atrium-IoU": 0.8925210652646944,
+                "left atrium-Dice": 0.9468615232225369,
+                "left atrium-HD95": 2.4962559758212852,
+                "left atrium-IoU": 0.9010121407236062
+            },
+            {
+                "left & right atrial walls-Dice": 0.7119521126301671,
+                "left & right atrial walls-HD95": 3.017437385251073,
+                "left & right atrial walls-IoU": 0.5603752844080715,
+                "right atrium-Dice": 0.9208220275917798,
+                "right atrium-HD95": 3.1297888949758037,
+                "right atrium-IoU": 0.8656865954582659,
+                "left atrium-Dice": 0.9385415549843166,
+                "left atrium-HD95": 3.213412840992786,
+                "left atrium-IoU": 0.8874370357419717
+            }
+        ],
+        "FocalLoss": [
+            {
+                "left & right atrial walls-Dice": 0.6977371551690241,
+                "left & right atrial walls-HD95": 3.1386703147482526,
+                "left & right atrial walls-IoU": 0.5443875463490258,
+                "right atrium-Dice": 0.9286060279021738,
+                "right atrium-HD95": 3.278476149185098,
+                "right atrium-IoU": 0.8714704418620424,
+                "left atrium-Dice": 0.9259166173486078,
+                "left atrium-HD95": 3.2022215423332723,
+                "left atrium-IoU": 0.8724572671732519
+            },
+            {
+                "left & right atrial walls-Dice": 0.6816895287538389,
+                "left & right atrial walls-HD95": 3.489064043907876,
+                "left & right atrial walls-IoU": 0.5269529680137085,
+                "right atrium-Dice": 0.9121112903604746,
+                "right atrium-HD95": 3.773436332285428,
+                "right atrium-IoU": 0.8518361321065584,
+                "left atrium-Dice": 0.9346128675458727,
+                "left atrium-HD95": 3.0338659104969588,
+                "left atrium-IoU": 0.8858133360717981
+            },
+            {
+                "left & right atrial walls-Dice": 0.6762882857473039,
+                "left & right atrial walls-HD95": 3.12092146920039,
+                "left & right atrial walls-IoU": 0.5154409367112188,
+                "right atrium-Dice": 0.9303644855138768,
+                "right atrium-HD95": 2.9931818595687485,
+                "right atrium-IoU": 0.8714994122635181,
+                "left atrium-Dice": 0.9280830356198875,
+                "left atrium-HD95": 3.374813439886686,
+                "left atrium-IoU": 0.8693019125179619
+            },
+            {
+                "left & right atrial walls-Dice": 0.6850918948343768,
+                "left & right atrial walls-HD95": 3.8496606095563743,
+                "left & right atrial walls-IoU": 0.5304649023652194,
+                "right atrium-Dice": 0.903692762809463,
+                "right atrium-HD95": 4.5001894013942945,
+                "right atrium-IoU": 0.8410717823025412,
+                "left atrium-Dice": 0.9266040360478348,
+                "left atrium-HD95": 3.6979810245036107,
+                "left atrium-IoU": 0.8749275255975942
+            }
+        ],
+        "LovaszSoftmax": [
+            {
+                "left & right atrial walls-Dice": 0.0018364731402300558,
+                "left & right atrial walls-HD95": 22.458102753119288,
+                "left & right atrial walls-IoU": 0.0009193476805011748,
+                "right atrium-Dice": 0.9121899035364525,
+                "right atrium-HD95": 3.777615328981425,
+                "right atrium-IoU": 0.8533605565683001,
+                "left atrium-Dice": 0.9297050178517462,
+                "left atrium-HD95": 3.3297018930022673,
+                "left atrium-IoU": 0.8760649766088222
+            },
+            {
+                "left & right atrial walls-Dice": 0.0010667846712817824,
+                "left & right atrial walls-HD95": 28.330988901168315,
+                "left & right atrial walls-IoU": 0.0005339968427611486,
+                "right atrium-Dice": 0.9390198253056994,
+                "right atrium-HD95": 2.764056344044886,
+                "right atrium-IoU": 0.8907127298526835,
+                "left atrium-Dice": 0.9483625205215154,
+                "left atrium-HD95": 2.522262906048648,
+                "left atrium-IoU": 0.9033039648895019
+            },
+            {
+                "left & right atrial walls-Dice": 0.03412716474337841,
+                "left & right atrial walls-HD95": 9.614038247770589,
+                "left & right atrial walls-IoU": 0.01741120861893189,
+                "right atrium-Dice": 0.8707973604346081,
+                "right atrium-HD95": 5.685003788346163,
+                "right atrium-IoU": 0.8005276042979663,
+                "left atrium-Dice": 0.9092352000845114,
+                "left atrium-HD95": 4.459166921521677,
+                "left atrium-IoU": 0.8431022041917813
+            }
+        ]
+    },
+    "nested-vnet": {
+        "AsymmetricLoss": [
+            {
+                "left & right atrial walls-Dice": 0.6811187925877357,
+                "left & right atrial walls-HD95": 3.2324260299525753,
+                "left & right atrial walls-IoU": 0.5215965272778617,
+                "right atrium-Dice": 0.9243279256758296,
+                "right atrium-HD95": 3.195210215615278,
+                "right atrium-IoU": 0.8613432531075069,
+                "left atrium-Dice": 0.929437595720908,
+                "left atrium-HD95": 3.340395953542417,
+                "left atrium-IoU": 0.8716181389918531
+            }
+        ],
+        "ExpLog_loss": [
+            {
+                "left & right atrial walls-Dice": 0.8293850841052204,
+                "left & right atrial walls-HD95": 1.7248418655888749,
+                "left & right atrial walls-IoU": 0.7188384812777602,
+                "right atrium-Dice": 0.9447901084367325,
+                "right atrium-HD95": 2.489416791233532,
+                "right atrium-IoU": 0.9071715443894043,
+                "left atrium-Dice": 0.9604856538879393,
+                "left atrium-HD95": 1.6969297869246613,
+                "left atrium-IoU": 0.9287938060174739
+            }
+        ]
+    }
+}
