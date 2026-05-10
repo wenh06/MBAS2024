@@ -17,7 +17,7 @@ env:
   revenger_data_dir: /challenge/cache/revenger_data_dir
   revenger_model_dir: /challenge/cache/revenger_model_dir
   docker_main_filename: Dockerfile
-  data_gdrive_id: 1wCcU4DCwmSJHrv0h_6e7sRgK0D_PezAs
+  data_gdrive_id: 1QbeGGrrTmKi4220BbJTA7FoC-gmHgwhc
   DOCKER_HUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
   DOCKER_HUB_REPOSITORY: deeppsp-mbas2024-docker-image
   DOCKER_IMAGE_TAG: latest

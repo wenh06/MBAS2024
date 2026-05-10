@@ -424,7 +424,7 @@ class MBAS2024(_DataBase):
 
     @property
     def url(self) -> str:
-        return "https://drive.google.com/u/0/uc?id=1wCcU4DCwmSJHrv0h_6e7sRgK0D_PezAs"
+        return "https://drive.google.com/u/0/uc?id=1QbeGGrrTmKi4220BbJTA7FoC-gmHgwhc"
 
     def download(self) -> None:
         """Download the database."""
