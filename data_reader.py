@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import os
 import re
 from pathlib import Path
-from typing import Any, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import nibabel as nib
 import numpy as np
@@ -12,7 +14,192 @@ from torch_ecg.databases.base import DataBaseInfo, _DataBase
 from torch_ecg.utils.download import http_get
 from torch_ecg.utils.misc import add_docstring, get_record_list_recursive3
 
+if TYPE_CHECKING:
+    from matplotlib.colors import ListedColormap
+
 __all__ = ["MBAS2024"]
+
+
+# ---------------------------------------------------------------------------
+# Shared visualisation helpers (notebook-friendly)
+# ---------------------------------------------------------------------------
+
+
+def _is_notebook() -> bool:
+    """Return True when running inside a Jupyter notebook / IPython kernel."""
+    try:
+        from IPython import get_ipython
+
+        if get_ipython() is not None:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _build_seg_cmap(palette: Dict[int, str], n_classes: int) -> ListedColormap:
+    """Build a discrete colormap from a class-id→colour palette."""
+    from matplotlib.colors import ListedColormap
+
+    colors = [palette.get(i, (0, 0, 0, 0)) for i in range(n_classes)]
+    return ListedColormap(colors)
+
+
+def _slice_view_interactive(
+    image: np.ndarray,
+    masks: Optional[Dict[int, np.ndarray]] = None,
+    palette: Optional[Dict[int, str]] = None,
+    class_names: Optional[Dict[int, str]] = None,
+    title: str = "",
+    figsize: Tuple[int, int] = (8, 8),
+) -> None:
+    """Interactive single-panel slice viewer with checkboxes and legend.
+
+    In Jupyter notebooks, displays:
+    - An integer slider to scrub through z-slices.
+    - One checkbox per label class to toggle contour overlay.
+    - A colour legend.
+
+    Parameters
+    ----------
+    image : (H, W, D) float32 array
+    masks : dict of ``class_id → (H, W, D) uint8 array``, optional
+    palette : dict of ``class_id → colour``, optional
+    class_names : dict of ``class_id → str``, optional
+        Human-readable names for the legend and checkbox labels.
+    title : str
+    figsize : (int, int)
+    """
+    import matplotlib.patches as mpatches
+    import matplotlib.pyplot as plt
+    from IPython.display import display
+    from ipywidgets import Checkbox, HBox, IntSlider, Output, VBox, interactive_output
+
+    if palette is None:
+        palette = {}
+    if class_names is None:
+        class_names = {}
+    if masks is None:
+        masks = {}
+
+    n_slices = image.shape[-1]
+    mid = n_slices // 2
+    mask_ids = sorted(masks.keys())
+
+    # -- widgets ---------------------------------------------------------------
+    slider = IntSlider(min=0, max=n_slices - 1, step=1, value=mid, description="Slice")
+    show_cbs: Dict[int, Checkbox] = {}
+    for cls_id in mask_ids:
+        label = class_names.get(cls_id, f"Class {cls_id}")
+        show_cbs[cls_id] = Checkbox(value=True, description=label, indent=False)
+
+    out = Output()
+
+    # -- plot function ---------------------------------------------------------
+    def _plot(slice_idx: int, **show: bool) -> None:
+        with out:
+            out.clear_output(wait=True)
+            fig, ax = plt.subplots(figsize=figsize)
+            ax.imshow(image[..., slice_idx], cmap="gray", origin="lower")
+
+            legend_handles = []
+            for cls_id in mask_ids:
+                if not show.get(str(cls_id), True):
+                    continue
+                mask = masks[cls_id]
+                if mask.max() == 0:
+                    continue
+                color = palette.get(cls_id, "white")
+                ax.contour(mask[..., slice_idx], levels=[0.5], colors=[color], linewidths=1.5)
+                legend_handles.append(
+                    mpatches.Patch(
+                        color=color,
+                        label=class_names.get(cls_id, f"Class {cls_id}"),
+                    )
+                )
+
+            if legend_handles:
+                ax.legend(handles=legend_handles, loc="upper right", framealpha=0.7, fontsize="small")
+
+            ax.set_title(f"{title}  (slice {slice_idx + 1}/{n_slices})")
+            ax.axis("off")
+            fig.tight_layout()
+            plt.show()
+
+    # -- wire widgets ----------------------------------------------------------
+    controls: Dict = {"slice_idx": slider}
+    controls.update({str(cls_id): cb for cls_id, cb in show_cbs.items()})
+
+    checkbox_row = HBox(list(show_cbs.values()))
+    ui = VBox([slider, checkbox_row, out])
+    display(ui)
+
+    # Hold a reference so the widget isn't garbage-collected
+    _plot._widget = interactive_output(_plot, controls)
+
+
+def _slice_view_static(
+    image: np.ndarray,
+    masks: Optional[Dict[int, np.ndarray]] = None,
+    palette: Optional[Dict[int, str]] = None,
+    class_names: Optional[Dict[int, str]] = None,
+    channels: Optional[List[int]] = None,
+    title: str = "",
+    max_cols: int = 4,
+) -> None:
+    """Static multi-slice grid view (fallback when not in a notebook)."""
+    import matplotlib.patches as mpatches
+    import matplotlib.pyplot as plt
+
+    n_slices = image.shape[-1]
+    if channels is None:
+        channels = list(range(n_slices))
+    if palette is None:
+        palette = {}
+    if class_names is None:
+        class_names = {}
+    if masks is None:
+        masks = {}
+
+    mask_ids = sorted(masks.keys())
+
+    n = len(channels)
+    n_rows = int(np.ceil(n / max_cols))
+    n_cols = min(max_cols, n)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
+    axes_flat = np.array(axes).ravel() if n > 1 else [axes]
+    plt.subplots_adjust(wspace=0.05, hspace=0.1)
+
+    for ax_idx, sl in enumerate(channels):
+        axes_flat[ax_idx].set_axis_off()
+        axes_flat[ax_idx].imshow(image[..., sl], cmap="gray", origin="lower")
+        axes_flat[ax_idx].set_title(f"Slice {sl}")
+        for cls_id in mask_ids:
+            mask = masks[cls_id]
+            if mask.max() == 0:
+                continue
+            color = palette.get(cls_id, "white")
+            axes_flat[ax_idx].contour(mask[..., sl], levels=[0.5], colors=[color], linewidths=1)
+
+    # Shared legend on the last visible axis
+    legend_handles = []
+    for cls_id in mask_ids:
+        if masks[cls_id].max() > 0:
+            legend_handles.append(
+                mpatches.Patch(
+                    color=palette.get(cls_id, "white"),
+                    label=class_names.get(cls_id, f"Class {cls_id}"),
+                )
+            )
+    if legend_handles:
+        axes_flat[min(n - 1, len(axes_flat) - 1)].legend(
+            handles=legend_handles, loc="upper right", framealpha=0.7, fontsize="small"
+        )
+
+    for ax_idx in range(n, len(axes_flat)):
+        axes_flat[ax_idx].set_visible(False)
+    fig.suptitle(title)
+    plt.show()
 
 
 _MBAS2024_INFO = DataBaseInfo(
@@ -333,16 +520,20 @@ class MBAS2024(_DataBase):
         crop: bool = False,
         crop_pad: Optional[Union[int, Sequence[int]]] = None,
         data: Optional[np.ndarray] = None,
+        interactive: Optional[bool] = None,
     ) -> None:
         """View the 3D LGE-MRI of a record.
+
+        In Jupyter notebooks the default is an interactive slider-based view
+        with per-class checkboxes and a colour legend.  Outside notebooks the
+        default is a static grid of all (or selected) slices.
 
         Parameters
         ----------
         rec : str or int
             The record name or index in self._all_records.
         channels : int or Sequence[int], optional
-            The channel(s) to view. If None, view all channels.
-            Valid only when orthoview is False.
+            The channel(s) to view (static mode only). If None, view all channels.
         with_ann : bool, default True
             Whether to overlay the segmentation annotation on the MRI.
         orthoview : bool, default False
@@ -351,21 +542,19 @@ class MBAS2024(_DataBase):
             The output shape of the 3D LGE-MRI data.
             If None, the original shape is returned.
         crop : bool, default False
-            Whether to crop the MRI by the bounding box of the segmentation annotation.
+            Whether to crop the MRI by the bounding box of the segmentation
+            annotation.
         crop_pad : int or Sequence[int], optional
             Padding around the bounding box, in each dimension.
             Defaults to self.__default_crop_pad__.
-            Valid only when crop is True.
         data : numpy.ndarray, optional
             The pre-loaded 3D LGE-MRI data.
             If None, it will be loaded.
-            This is useful when the data is processed, i.e., using MCLAHE, etc.
+        interactive : bool, optional
+            Force interactive (``True``) or static (``False``) mode.
+            Defaults to auto-detection based on the runtime environment.
 
         """
-        if "plt" not in globals():
-            import matplotlib.pyplot as plt
-        if "ListedColormap" not in globals():
-            from matplotlib.colors import ListedColormap
         if isinstance(rec, int):
             rec = self._all_records[rec]
         if data is not None:
@@ -377,42 +566,34 @@ class MBAS2024(_DataBase):
         if orthoview:
             data.orthoview()
             return
-        if with_ann:
-            if crop:
-                seg_ann = self.load_ann_cropped(rec, pad=crop_pad, output_shape=output_shape)
-            else:
-                seg_ann = self.load_ann(rec, output_shape=output_shape)
-        else:
-            seg_ann = np.full_like(data, self.__label2id__["background"])
-        if channels is None:
-            if output_shape is None:
-                # channels = list(range(self._df_records.loc[rec, "channels"]))
-                channels = list(range(data.shape[-1]))
-            else:
-                channels = list(range(output_shape[-1]))
-        elif isinstance(channels, int):
-            channels = [channels]
-        num_channels = len(channels)
 
-        fig_height = int(np.ceil(num_channels / 4).item()) * 5
-        fig, ax = plt.subplots(fig_height // 5, min(4, num_channels), figsize=(20, fig_height))
-        plt.subplots_adjust(wspace=0.1, hspace=0.1)
-        if num_channels == 1:
-            ax = [ax]
+        # Build per-class binary masks for contour overlay
+        masks: Dict[int, np.ndarray] = {}
+        title = f"LGE-MRI — {rec}"
+        if with_ann:
+            seg_ann = (
+                self.load_ann_cropped(rec, pad=crop_pad, output_shape=output_shape)
+                if crop
+                else self.load_ann(rec, output_shape=output_shape)
+            )
+            for cls_id in sorted(self.__class_map__):
+                if cls_id == 0:
+                    continue
+                binary = (seg_ann == cls_id).astype(np.uint8)
+                if binary.max() > 0:
+                    masks[cls_id] = binary
+            title += " + annotation"
         else:
-            ax = ax.ravel()
-        seg_cmap = ListedColormap([self.__palette__[cls_] for cls_ in self.__class_map__ if cls_ in self.__palette__])
-        for ax_idx, chan_idx in enumerate(channels):
-            ax[ax_idx].set_axis_off()
-            ax[ax_idx].imshow(data[..., chan_idx], cmap="gray")
-            ax[ax_idx].set_title(f"Slice {chan_idx}")
-            # add annotation
-            chan_ann = seg_ann[..., chan_idx]
-            # for cls_ in np.unique(chan_ann):
-            #     if cls_ == self.__label2id__["background"]:
-            #         continue
-            #     ax[ax_idx].contour(chan_ann == cls_, colors=self.__palette__[cls_], linewidths=1, hatches=["//"])
-            ax[ax_idx].imshow(chan_ann, cmap=seg_cmap, alpha=0.1)
+            seg_ann = np.zeros(data.shape[:3], dtype=np.uint8)
+
+        # Choose interactive vs static
+        if interactive is None:
+            interactive = _is_notebook()
+
+        if interactive:
+            _slice_view_interactive(data, masks, self.__palette__, self.__id2label__, title=title)
+        else:
+            _slice_view_static(data, masks, self.__palette__, self.__id2label__, channels=channels, title=title)
 
     @property
     def database_info(self) -> DataBaseInfo:
