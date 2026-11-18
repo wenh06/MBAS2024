@@ -1,5 +1,7 @@
 # https://hub.docker.com/r/pytorch/pytorch
-FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime
+# FROM pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime (py3.10.14, torch-ecg requires >=3.11 now)
+FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
+# NOTE: pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime has python version 3.11, system version Ubuntu 22.04
 # NOTE:
 # pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8, system version Ubuntu 18.04.6 LTS
 # pytorch/pytorch:1.10.0-cuda11.3-cudnn8-runtime has python version 3.7.x
@@ -77,9 +79,13 @@ RUN python -m pip install --upgrade pip setuptools wheel build
 
 # RUN pip install torch-ecg
 # install the dev branch of torch-ecg
+# constrain the torch_ecg install with our requirements-docker.txt (torch
+# family caps, pandas floor) so that resolving torch-ecg's bare `torch`
+# dep can not upgrade torch/torchaudio out of the base image stack and
+# break the base torchvision (operator torchvision::nms does not exist)
 RUN cd $GIT_CLONE_DIR \
     && git clone https://github.com/DeepPSP/torch_ecg.git && cd torch_ecg && git checkout dev \
-    && python -m pip install -r requirements.txt && python -m pip install -e .[dev] \
+    && python -m pip install -r requirements.txt -c /challenge/requirements-docker.txt && python -m pip install -e .[dev] -c /challenge/requirements-docker.txt \
     && cd /challenge
 
 # install dependencies other than torch-related packages

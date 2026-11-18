@@ -27,9 +27,13 @@ def cache_pretrained_models():
     assert (Path(MODEL_CACHE_DIR) / "stage1-model.pth.tar").exists()
 
     # load the pretrained models
+    # weights_only=False: the checkpoint carries the train cfg (plain
+    # python objects); torch>=2.6's weights_only default (inherited by
+    # torch_ecg's "auto") refuses it
     model, train_config = MultiHead_MBAS2024.from_checkpoint(
         Path(MODEL_CACHE_DIR) / "stage0-model.pth.tar",
         device="cpu",
+        weights_only=False,
     )
     model = model.to("cpu").eval()
     print("stage0-model loaded")
@@ -40,6 +44,7 @@ def cache_pretrained_models():
     model, train_config = MultiHead_MBAS2024.from_checkpoint(
         Path(MODEL_CACHE_DIR) / "stage1-model.pth.tar",
         device="cpu",
+        weights_only=False,
     )
     model = model.to("cpu").eval()
     print("stage1-model loaded")
