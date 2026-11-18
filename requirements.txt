@@ -1,8 +1,8 @@
 numpy==1.26.4
 scipy==1.12.0
 joblib==1.3.2
-# pandas>=2.2.2: torch-ecg (dev) requires >=2.2.2
-pandas>=2.2.1
+# pandas>=2.2.2 (torch-ecg dev) and <3 (wfdb 3.4.1 breaks on pandas 3.x)
+pandas>=2.2.1,<3
 scikit-learn==1.4.0
 wfdb>=3.4.1,<4
 timm==0.9.16
