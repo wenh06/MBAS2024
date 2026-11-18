@@ -404,8 +404,8 @@ if __name__ == "__main__":
     device = torch.device(args.device)
 
     model_dir = Path(args.model_dir).expanduser().resolve()
-    stage0_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage0-model.pth.tar", device=device)[0]
-    stage1_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage1-model.pth.tar", device=device)[0]
+    stage0_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage0-model.pth.tar", device=device, weights_only=False)[0]
+    stage1_model = MultiHead_MBAS2024.from_checkpoint(model_dir / "stage1-model.pth.tar", device=device, weights_only=False)[0]
     stage0_model = stage0_model.to(device).eval()
     stage1_model = stage1_model.to(device).eval()
 

@@ -53,8 +53,8 @@ if __name__ == "__main__":
     # Since we are using the same model for validation and testing, we will treat the cli argument `model_pth` a dummy argument,
     # and use our pre-defined path (see the environment variable `MODEL_CACHE_DIR` of the `Dockerfile`) to load the models.
     model_pth = Path(MODEL_CACHE_DIR).expanduser().resolve()
-    stage0_model = MultiHead_MBAS2024.from_checkpoint(model_pth / "stage0-model.pth.tar", device=device)[0]
-    stage1_model = MultiHead_MBAS2024.from_checkpoint(model_pth / "stage1-model.pth.tar", device=device)[0]
+    stage0_model = MultiHead_MBAS2024.from_checkpoint(model_pth / "stage0-model.pth.tar", device=device, weights_only=False)[0]
+    stage1_model = MultiHead_MBAS2024.from_checkpoint(model_pth / "stage1-model.pth.tar", device=device, weights_only=False)[0]
     stage0_model = stage0_model.to(device).eval()
     stage1_model = stage1_model.to(device).eval()
 
